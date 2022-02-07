@@ -1,4 +1,4 @@
-module ap
+module github.com/flw-cn/ap
 
 go 1.17
 
