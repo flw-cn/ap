@@ -10,7 +10,7 @@ ap 由两部分组成，一个 Go 语言编写的二进制程序，负责捕获�
 ## 安装
 
 ```
-go install github.com/flw-cn/ap
+go install github.com/flw-cn/ap@master
 ```
 
 ## 配置
