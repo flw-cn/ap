@@ -11,7 +11,6 @@ ap 由两部分组成，一个 Go 语言编写的二进制程序，负责捕获�
 
 ```
 go install github.com/flw-cn/ap
-TODO: 还需要说明 ap.zsh 的安装方法
 ```
 
 ## 配置
@@ -19,28 +18,28 @@ TODO: 还需要说明 ap.zsh 的安装方法
 在你的 `~/.zshrc` 里加入下面内容：
 
 ```
-source ~/.config/ap/ap.zsh
+eval "$(ap -zsh)"
 ```
 
 ap 默认 wrap 了一批命令。如果你不满意，可以通过环境变量重新定制：
 
 ```
 AUTO_PAGER_CMDS=(go cargo make)
-source ~/.config/ap/ap.zsh
+eval "$(ap -zsh)"
 ```
 
 或者也可只在默认清单之上增加新的命令：
 
 ```
 AUTO_PAGER_CMDS_EXTRA=(ps last)
-source ~/.config/ap/ap.zsh
+eval "$(ap -zsh)"
 ```
 
 另外，ap 也可以和 [grc](https://github.com/garabik/grc) 一起工作：
 
 ```
 AUTO_PAGER_CMDS_WITH_GRC=(ps last dig diff)
-source ~/.config/ap/ap.zsh
+eval "$(ap -zsh)"
 ```
 
 ## 使用

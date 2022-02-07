@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	_ "embed"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,10 +14,18 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+//go:embed ap.zsh
+var zsh string
+
 func main() {
 	if len(os.Args) == 1 {
 		fmt.Fprintf(os.Stderr, "Usage: %v <command> <args>\n", os.Args[0])
 		os.Exit(1)
+	}
+
+	if os.Args[1] == "-zsh" {
+		fmt.Println(zsh)
+		return
 	}
 
 	c := exec.Command(os.Args[1], os.Args[2:]...)
