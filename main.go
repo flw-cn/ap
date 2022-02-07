@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/signal"
 
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
@@ -45,6 +46,13 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Can't exec %v: %v\n", os.Args[1:], err)
 		os.Exit(1)
 	}
+
+	go func() {
+		signalCh := make(chan os.Signal, 1)
+		signal.Notify(signalCh, os.Interrupt)
+		<-signalCh
+		c.Process.Signal(os.Interrupt)
+	}()
 
 	buf, _ := ioutil.ReadAll(io.TeeReader(p, os.Stderr))
 	c.Wait()
