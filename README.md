@@ -18,34 +18,40 @@ go install github.com/flw-cn/ap
 在你的 `~/.zshrc` 里加入下面内容：
 
 ```
-eval "$(ap -zsh)"
+eval "$(ap --zsh)"
 ```
 
 ap 默认 wrap 了一批命令。如果你不满意，可以通过环境变量重新定制：
 
 ```
 AUTO_PAGER_CMDS=(go cargo make)
-eval "$(ap -zsh)"
+eval "$(ap --zsh)"
 ```
 
 或者也可只在默认清单之上增加新的命令：
 
 ```
 AUTO_PAGER_CMDS_EXTRA=(ps last)
-eval "$(ap -zsh)"
+eval "$(ap --zsh)"
 ```
 
 另外，ap 也可以和 [grc](https://github.com/garabik/grc) 一起工作：
 
 ```
 AUTO_PAGER_CMDS_WITH_GRC=(ps last dig diff)
-eval "$(ap -zsh)"
+eval "$(ap --zsh)"
 ```
 
 ## 使用
 
 经过 ap wrap 过的命令只需要像往常一样使用就可以了，
-如果输出内容过多，会自动调用 `$PAGER` 进行翻页。
+如果输出内容过多，会自动调用环境变量 `$PAGER` 所指定的分页器进行分页。
+
+如果你的 `$PAGER` 变量比较特殊，无法与 ap 适配，你也可以通过以下两种方式定制：
+* 通过环境变量 `$AP_PAGER`（优先级比 `$PAGER` 高）
+* 通过命令行参数 `--pager <pager>`（优先级比 `$AP_PAGER` 和 `$PAGER` 要高）
+
+如果 `--pager`、`$AP_PAGER` 和 `$PAGER` 都没有指定，那么将使用 `less -FR`。
 
 ## 常见问题
 
