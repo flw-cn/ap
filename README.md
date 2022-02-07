@@ -19,11 +19,29 @@ TODO: 还需要说明 ap.zsh 的安装方法
 在你的 `~/.zshrc` 里加入下面内容：
 
 ```
+source ~/.config/ap/ap.zsh
+```
+
+ap 默认 wrap 了一批命令。如果你不满意，可以通过环境变量重新定制：
+
+```
 AUTO_PAGER_CMDS=(go cargo make)
 source ~/.config/ap/ap.zsh
 ```
 
-其中 `AUTO_PAGER_CMDS` 的内容可以按需定制，ap 会为其中的每个命令创建同名 wrapper。
+或者也可只在默认清单之上增加新的命令：
+
+```
+AUTO_PAGER_CMDS_EXTRA=(ps last)
+source ~/.config/ap/ap.zsh
+```
+
+另外，ap 也可以和 [grc](https://github.com/garabik/grc) 一起工作：
+
+```
+AUTO_PAGER_CMDS_WITH_GRC=(ps last dig diff)
+source ~/.config/ap/ap.zsh
+```
 
 ## 使用
 
