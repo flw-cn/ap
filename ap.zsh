@@ -1,10 +1,10 @@
 auto-pager-wrapper() {
     local grc=$1; shift
     local name=$funcstack[2]
-    if (( ! $+commands[$name] )) ; then
+    if ! type -p $name >/dev/null; then
         return
     fi
-    if [[ "x$grc" == "xgrc" && (( $+commands[grc] )) ]]; then
+    if [[ "x$grc" == "xgrc" ]] && type -p grc >/dev/null; then
         ap grc $name $@
     else
         ap $name $@
