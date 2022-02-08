@@ -40,8 +40,8 @@ func main() {
 		zsh  bool
 	)
 
-	flag.StringVar(&optPager, "pager", "", "what pager to be used, defaults to `less -FR'")
-	flag.IntVar(&optHeight, "height", 0, "enable paging when the number of lines exceeds this height. negative numbers means percentages. defaults to -80(means 80%)")
+	flag.StringVar(&optPager, "pager", "", "what pager to be used, defaults to `less -Fr'")
+	flag.IntVar(&optHeight, "height", -80, "enable paging when the number of lines exceeds this height. negative numbers means percentages. defaults to -80(means 80%)")
 	flag.BoolVar(&bash, "bash", false, "output bash script")
 	flag.BoolVar(&fish, "fish", false, "output fish script")
 	flag.BoolVar(&zsh, "zsh", false, "output zsh script")
