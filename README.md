@@ -1,4 +1,4 @@
-ap -- auto-pager
+# ap -- auto-pager
 
 ap 是一个 shell 工具，可以让其它 shell 命令的输出能够自动进入交互翻页模式。
 
@@ -15,43 +15,184 @@ go install github.com/flw-cn/ap@master
 
 ## 配置
 
+* [bash](#bash)
+* [fish](#fish)
+* [zsh](#zsh)
+
+### bash
+
+在你的 `~/.bashrc` 里加入下面内容：
+
+```sh
+eval "$(ap --bash)"
+```
+
+ap 默认 wrap 了一批命令。如果你不满意，可以通过环境变量重新定制：
+
+```sh
+AUTO_PAGER_CMDS=(go cargo make)
+eval "$(ap --bash)"
+```
+
+或者也可只在默认清单之上增加新的命令：
+
+```sh
+AUTO_PAGER_CMDS_EXTRA=(ps last)
+eval "$(ap --bash)"
+```
+
+另外，ap 也可以和 [grc](https://github.com/garabik/grc) 一起工作，在 macOS  下可以使用 Homebrew 安装 grc:
+
+```sh
+brew install grc
+```
+
+ap + grc 默认 wrap 了一批命令。如果你不满意，可以通过环境变量重新定制：
+
+```sh
+AUTO_PAGER_CMDS_WITH_GRC=(ps last dig diff)
+eval "$(ap --bash)"
+```
+
+或者也可只在默认清单之上增加新的命令：
+
+```sh
+AUTO_PAGER_CMDS_WITH_GRC_EXTRA=(ps last)
+eval "$(ap --bash)"
+```
+
+
+
+另外，环境变量 `$AUTO_PAGER_MIN_HEIGHT` 可以控制开始分页的最小行数：
+
+```sh
+AUTO_PAGER_MIN_HEIGHT=30        # 输出超过 30 行时才开始分页
+eval "$(ap --bash)"
+```
+
+如果配置为负数，则代表终端窗口高度的百分比：
+
+```sh
+AUTO_PAGER_MIN_HEIGHT='-50'     # 输出超过终端窗口高度的 50% 时才开始分页
+eval "$(ap --bash)"
+```
+
+如果不指定 `AUTO_PAGER_MIN_HEIGHT`，默认为 `-80`，即 `80%`。
+
+### fish
+
+在你的 `~/.config/fish/config.fish` 里加入下面内容：
+
+```sh
+ap --fish | source
+```
+
+ap 默认 wrap 了一批命令。如果你不满意，可以通过环境变量重新定制：
+
+```sh
+set AUTO_PAGER_CMDS go cargo make
+ap --fish | source
+```
+
+或者也可只在默认清单之上增加新的命令：
+
+```sh
+set AUTO_PAGER_CMDS_EXTRA ps last
+ap --fish | source
+```
+
+另外，ap 也可以和 [grc](https://github.com/garabik/grc) 一起工作，在 macOS  下可以使用 Homebrew 安装 grc:
+
+```sh
+brew install grc
+```
+
+ap + grc 默认 wrap 了一批命令。如果你不满意，可以通过环境变量重新定制：
+
+```sh
+set AUTO_PAGER_CMDS_WITH_GRC ps last dig diff
+ap --fish | source
+```
+
+或者也可只在默认清单之上增加新的命令：
+
+```sh
+set AUTO_PAGER_CMDS_WITH_GRC_EXTRA ps last
+ap --fish | source
+```
+
+
+
+另外，环境变量 `$AUTO_PAGER_MIN_HEIGHT` 可以控制开始分页的最小行数：
+
+```sh
+set AUTO_PAGER_MIN_HEIGHT 30        # 输出超过 30 行时才开始分页
+ap --fish | source
+```
+
+如果配置为负数，则代表终端窗口高度的百分比：
+
+```sh
+set AUTO_PAGER_MIN_HEIGHT -50     # 输出超过终端窗口高度的 50% 时才开始分页
+ap --fish | source
+```
+
+如果不指定 `AUTO_PAGER_MIN_HEIGHT`，默认为 `-80`，即 `80%`。
+
+### zsh
+
 在你的 `~/.zshrc` 里加入下面内容：
 
-```
+```sh
 eval "$(ap --zsh)"
 ```
 
 ap 默认 wrap 了一批命令。如果你不满意，可以通过环境变量重新定制：
 
-```
+```sh
 AUTO_PAGER_CMDS=(go cargo make)
 eval "$(ap --zsh)"
 ```
 
 或者也可只在默认清单之上增加新的命令：
 
-```
+```sh
 AUTO_PAGER_CMDS_EXTRA=(ps last)
 eval "$(ap --zsh)"
 ```
 
-另外，ap 也可以和 [grc](https://github.com/garabik/grc) 一起工作：
+另外，ap 也可以和 [grc](https://github.com/garabik/grc) 一起工作，在 macOS  下可以使用 Homebrew 安装 grc:
 
+```sh
+brew install grc
 ```
+
+ap + grc 默认 wrap 了一批命令。如果你不满意，可以通过环境变量重新定制：
+
+```sh
 AUTO_PAGER_CMDS_WITH_GRC=(ps last dig diff)
 eval "$(ap --zsh)"
 ```
 
+或者也可只在默认清单之上增加新的命令：
+
+```sh
+AUTO_PAGER_CMDS_WITH_GRC_EXTRA=(ps last)
+eval "$(ap --zsh)"
+```
+
+
+
 另外，环境变量 `$AUTO_PAGER_MIN_HEIGHT` 可以控制开始分页的最小行数：
 
-```
+```sh
 AUTO_PAGER_MIN_HEIGHT=30        # 输出超过 30 行时才开始分页
 eval "$(ap --zsh)"
 ```
 
 如果配置为负数，则代表终端窗口高度的百分比：
 
-```
+```sh
 AUTO_PAGER_MIN_HEIGHT='-50'     # 输出超过终端窗口高度的 50% 时才开始分页
 eval "$(ap --zsh)"
 ```
@@ -82,7 +223,7 @@ eval "$(ap --zsh)"
 * 有的命令会检测终端，并为终端模式和非终端模式提供不同的输出，会改变它的输出吗？
     - 不会。
 * 如果我怀疑 ap 影响了命令的输出，如何诊断？
-    - 在 zsh 下你可以用 `command foo ...` 来执行 `foo`，这样就不会调用 ap。
+    - 你可以用`type -p foo` 来找到 foo 命令的路径，然后使用 `/path/to/foo` 来执行 `foo`，这样就不会调用 ap。
 * 如果我习惯性地在 ap 过的命令后面加了 `| less`，会出问题吗？
     - 不会。
 * ap 过的命令还可以重定向它的输出吗？
