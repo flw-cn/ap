@@ -158,7 +158,7 @@ func run() {
 	if optHeight == 0 {
 		optHeight = int(winSize.Rows) * 80 / 100
 	} else if optHeight < 0 {
-		optHeight = int(winSize.Rows) * optHeight / 100
+		optHeight = int(winSize.Rows) * -optHeight / 100
 	}
 
 	if bytes.Count(output.Bytes(), []byte("\n")) > optHeight &&
