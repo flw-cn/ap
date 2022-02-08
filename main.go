@@ -25,6 +25,9 @@ var bashScript string
 //go:embed ap.fish
 var fishScript string
 
+//go:embed ap.zsh
+var zshScript string
+
 var optPager string
 var optHeight int
 
@@ -47,13 +50,18 @@ func main() {
 	flag.BoolVar(&zsh, "zsh", false, "output zsh script")
 	flag.Parse()
 
-	if bash || zsh {
+	if bash {
 		fmt.Println(bashScript)
 		return
 	}
 
 	if fish {
 		fmt.Println(fishScript)
+		return
+	}
+
+	if zsh {
+		fmt.Println(zshScript)
 		return
 	}
 
