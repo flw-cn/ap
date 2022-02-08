@@ -14,14 +14,16 @@ auto-pager-wrapper() {
 AUTO_PAGER_CMDS_DEFAULT_GRC=(
     df du env id last lsof mount ps sysctl
     diff tar
-    cc gcc g++ make go
+    cc gcc g++ make
     curl dig ifconfig iostat ip iptables iptables-save netstat
     ping ping6 tcpdump traceroute traceroute6 whois
     docker docker-compose docker-machine kubectl
 )
 
 AUTO_PAGER_CMDS_DEFAULT=(
-    cargo rustc
+    ls tree
+    go cargo rustc
+    brew apt
 )
 
 if [[ ${#AUTO_PAGER_CMDS[@]} -gt 0 ]]; then
