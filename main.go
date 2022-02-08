@@ -19,8 +19,8 @@ import (
 	"golang.org/x/term"
 )
 
-//go:embed ap.zsh
-var zshScript string
+//go:embed ap.bash
+var bashScript string
 
 var optPager string
 var optHeight int
@@ -31,15 +31,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	var zsh bool
+	var (
+		bash bool
+		zsh  bool
+	)
 
 	flag.StringVar(&optPager, "pager", "", "what pager to be used, defaults to `less -FR'")
 	flag.IntVar(&optHeight, "height", 0, "enable paging when the number of lines exceeds this height. negative numbers means percentages. defaults to -80(means 80%)")
+	flag.BoolVar(&bash, "bash", false, "output bash script")
 	flag.BoolVar(&zsh, "zsh", false, "output zsh script")
 	flag.Parse()
 
-	if zsh {
-		fmt.Println(zshScript)
+	if bash || zsh {
+		fmt.Println(bashScript)
 		return
 	}
 
