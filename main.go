@@ -23,6 +23,7 @@ import (
 var zshScript string
 
 var optPager string
+var optHeight int
 
 func main() {
 	if len(os.Args) == 1 {
@@ -33,6 +34,7 @@ func main() {
 	var zsh bool
 
 	flag.StringVar(&optPager, "pager", "", "what pager to be used, defaults to `less -FR'")
+	flag.IntVar(&optHeight, "height", 0, "enable paging when the number of lines exceeds this height. negative numbers means percentages. defaults to -80(means 80%)")
 	flag.BoolVar(&zsh, "zsh", false, "output zsh script")
 	flag.Parse()
 
@@ -125,7 +127,15 @@ func run() {
 	io.Copy(output, io.TeeReader(p, os.Stderr))
 	c.Wait()
 
-	if !bytes.Contains(output.Bytes(), []byte("\x1b[?1049h")) {
+	winSize := getSize(os.Stdout)
+	if optHeight == 0 {
+		optHeight = int(winSize.Rows) * 80 / 100
+	} else if optHeight < 0 {
+		optHeight = int(winSize.Rows) * optHeight / 100
+	}
+
+	if bytes.Count(output.Bytes(), []byte("\n")) > optHeight &&
+		!bytes.Contains(output.Bytes(), []byte("\x1b[?1049h")) {
 		paging(output)
 	}
 
