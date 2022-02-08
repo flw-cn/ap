@@ -6,14 +6,17 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/creack/pty"
+
 	"golang.org/x/sys/unix"
+	"golang.org/x/term"
 )
 
 //go:embed ap.zsh
@@ -38,52 +41,99 @@ func main() {
 		return
 	}
 
-	args := flag.Args()
-	c := exec.Command(args[0], args[1:]...)
-
+	// ap should only work under tty, otherwise fall back to doing nothing.
 	isTTY := true
-	files := []*os.File{os.Stdin, os.Stdout, os.Stderr}
-	for _, file := range files {
-		if _, err := unix.IoctlGetWinsize(int(file.Fd()), unix.TIOCGWINSZ); err != nil {
+	for fd := 0; fd < 3; fd++ {
+		if _, err := unix.IoctlGetWinsize(fd, unix.TIOCGWINSZ); err != nil {
 			isTTY = false
 			break
 		}
 	}
 
 	if !isTTY {
-		c.Stdin = os.Stdin
-		c.Stdout = os.Stdout
-		c.Stderr = os.Stderr
-		c.Run()
-		c.Wait()
-		os.Exit(c.ProcessState.ExitCode())
-	}
-
-	p, err := pty.Start(c)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Can't exec %v: %v\n", os.Args[1:], err)
+		args := flag.Args()
+		name, err := exec.LookPath(args[0])
+		if err != nil {
+			os.Exit(1)
+		}
+		err = syscall.Exec(name, args, os.Environ())
 		os.Exit(1)
 	}
 
-	go func() {
-		signalCh := make(chan os.Signal, 1)
-		signal.Notify(signalCh, os.Interrupt)
-		<-signalCh
-		c.Process.Signal(os.Interrupt)
-	}()
-
-	buf, _ := ioutil.ReadAll(io.TeeReader(p, os.Stderr))
-	c.Wait()
-
-	if bytes.Count(buf, []byte("\n")) > 30 {
-		paging(bytes.NewBuffer(buf))
-		os.Exit(c.ProcessState.ExitCode())
-	}
-
-	os.Exit(0)
+	run()
 }
 
-func paging(file io.Reader) {
+func run() {
+	args := flag.Args()
+	c := exec.Command(args[0], args[1:]...)
+
+	p, err := pty.StartWithSize(c, getSize(os.Stdout))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Can't exec %v: %v\n", args, err)
+		os.Exit(1)
+	}
+
+	state, _ := term.MakeRaw(0)
+
+	go func() {
+		signalCh := make(chan os.Signal, 10)
+		signal.Notify(signalCh, os.Interrupt)
+		signal.Notify(signalCh, syscall.SIGWINCH)
+
+		for sig := range signalCh {
+			switch sig {
+			case os.Interrupt:
+				c.Process.Signal(os.Interrupt)
+				break
+			case syscall.SIGWINCH:
+				pty.Setsize(p, getSize(os.Stdout))
+			}
+		}
+	}()
+
+	output := new(bytes.Buffer)
+
+	go func() {
+		signalCh := make(chan os.Signal, 10)
+		signal.Notify(signalCh, syscall.SIGCHLD)
+		waitStdin := time.After(1 * time.Second)
+		stdinReady := false
+		for {
+			select {
+			case <-signalCh:
+				return
+
+			case <-waitStdin:
+				if bytes.Contains(output.Bytes(), []byte("\x1b[?1049h")) {
+					io.Copy(p, os.Stdin)
+					return
+				} else {
+					stdinReady = true
+				}
+
+			default:
+				if stdinReady {
+					syscall.SetNonblock(0, true)
+					os.Stdin.SetReadDeadline(time.Now().Add(50 * time.Millisecond))
+					io.Copy(p, os.Stdin)
+					syscall.SetNonblock(0, false)
+				}
+			}
+		}
+	}()
+
+	io.Copy(output, io.TeeReader(p, os.Stderr))
+	c.Wait()
+
+	if !bytes.Contains(output.Bytes(), []byte("\x1b[?1049h")) {
+		paging(output)
+	}
+
+	term.Restore(0, state)
+	os.Exit(c.ProcessState.ExitCode())
+}
+
+func paging(output io.Reader) {
 	var pager string
 	if optPager != "" {
 		pager = optPager
@@ -100,8 +150,12 @@ func paging(file io.Reader) {
 	c := exec.Command(args[0], args[1:]...)
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
-	c.Stdin = file
+	c.Stdin = output
 
 	c.Run()
-	c.Wait()
+}
+
+func getSize(p *os.File) *pty.Winsize {
+	rows, cols, _ := pty.Getsize(p)
+	return &pty.Winsize{Rows: uint16(rows), Cols: uint16(cols), X: 0, Y: 0}
 }
