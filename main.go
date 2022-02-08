@@ -124,7 +124,12 @@ func run() {
 		}
 	}()
 
-	io.Copy(output, io.TeeReader(p, os.Stderr))
+	for {
+		_, err := io.Copy(output, io.TeeReader(p, os.Stderr))
+		if err == nil {
+			break
+		}
+	}
 	c.Wait()
 
 	winSize := getSize(os.Stdout)
@@ -152,11 +157,10 @@ func paging(output io.Reader) {
 	} else if s := os.Getenv("PAGER"); s != "" {
 		pager = s
 	} else {
-		pager = "less -FR"
+		pager = "less -Fr"
 	}
 
 	args := strings.Fields(pager)
-
 	c := exec.Command(args[0], args[1:]...)
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr

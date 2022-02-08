@@ -4,10 +4,12 @@ auto-pager-wrapper() {
     if ! type -p $name >/dev/null; then
         return
     fi
+
+    local height="${AUTO_PAGER_MIN_HEIGHT:--80}"
     if [[ "x$grc" == "xgrc" ]] && type -p grc >/dev/null; then
-        ap grc $name $@
+        ap --height $height grc $name $@
     else
-        ap $name $@
+        ap --height $height $name $@
     fi
 }
 
