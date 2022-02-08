@@ -22,6 +22,9 @@ import (
 //go:embed ap.bash
 var bashScript string
 
+//go:embed ap.fish
+var fishScript string
+
 var optPager string
 var optHeight int
 
@@ -33,17 +36,24 @@ func main() {
 
 	var (
 		bash bool
+		fish bool
 		zsh  bool
 	)
 
 	flag.StringVar(&optPager, "pager", "", "what pager to be used, defaults to `less -FR'")
 	flag.IntVar(&optHeight, "height", 0, "enable paging when the number of lines exceeds this height. negative numbers means percentages. defaults to -80(means 80%)")
 	flag.BoolVar(&bash, "bash", false, "output bash script")
+	flag.BoolVar(&fish, "fish", false, "output fish script")
 	flag.BoolVar(&zsh, "zsh", false, "output zsh script")
 	flag.Parse()
 
 	if bash || zsh {
 		fmt.Println(bashScript)
+		return
+	}
+
+	if fish {
+		fmt.Println(fishScript)
 		return
 	}
 
