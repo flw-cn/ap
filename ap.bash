@@ -16,10 +16,10 @@ for _cmd in "${AUTO_PAGER_CMDS[@]}" "${AUTO_PAGER_CMDS_EXTRA[@]}"; do
     [ "$_cmd" ] && alias $_cmd="ap $_cmd"
 done
 
-if type -p grc >/dev/null; then
-    for _cmd in "${AUTO_PAGER_CMDS_WITH_GRC[@]}" "${AUTO_PAGER_CMDS_WITH_GRC_EXTRA[@]}"; do
-        [ "$_cmd" ] && alias $_cmd="ap grc $_cmd"
-    done
-fi
+type -p grc >/dev/null && _grc="grc "
 
-unset _cmd _prog
+for _cmd in "${AUTO_PAGER_CMDS_WITH_GRC[@]}" "${AUTO_PAGER_CMDS_WITH_GRC_EXTRA[@]}"; do
+    [ "$_cmd" ] && alias $_cmd="ap $_grc$_cmd"
+done
+
+unset _cmd _grc
