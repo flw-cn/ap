@@ -23,7 +23,6 @@ AUTO_PAGER_CMDS_DEFAULT_GRC=(
 AUTO_PAGER_CMDS_DEFAULT=(
     ls tree
     go cargo rustc
-    brew apt
 )
 
 if [[ ${#AUTO_PAGER_CMDS[@]} -gt 0 ]]; then
