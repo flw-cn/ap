@@ -1,8 +1,8 @@
-set AUTO_PAGER_CMDS \
+set -q AUTO_PAGER_CMDS; or set AUTO_PAGER_CMDS \
     ls tree \
     go cargo rustc
 
-set AUTO_PAGER_CMDS_WITH_GRC \
+set -q AUTO_PAGER_CMDS_WITH_GRC; or set AUTO_PAGER_CMDS_WITH_GRC \
     df du env id last lsof mount ps sysctl \
     diff tar \
     cc gcc g++ make \
