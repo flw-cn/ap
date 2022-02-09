@@ -1,9 +1,9 @@
-AUTO_PAGER_CMDS=(
+declare -p AUTO_PAGER_CMDS >/dev/null 2>&1 || AUTO_PAGER_CMDS=(
     ls tree
     go cargo rustc
 )
 
-AUTO_PAGER_CMDS_WITH_GRC=(
+declare -p AUTO_PAGER_CMDS_WITH_GRC >/dev/null 2>&1 || AUTO_PAGER_CMDS_WITH_GRC=(
     df du env id last lsof mount ps sysctl
     diff tar
     cc gcc g++ make
