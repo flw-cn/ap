@@ -30,9 +30,11 @@ var optPager string
 var optHeight int
 
 func main() {
-	parseOptions()
+	args := parseOptions()
+	if len(args) == 0 {
+		os.Exit(1)
+	}
 
-	args := flag.Args()
 	name, err := exec.LookPath(args[0])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Can't exec %v: %v\n", args, err)
@@ -81,7 +83,7 @@ func run(cmd *exec.Cmd, tty *os.File, winSize *pty.Winsize) int {
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Can't exec %v: %v\n", cmd.Args, err)
-		os.Exit(1)
+		return 1
 	}
 
 	state, err := term.MakeRaw(0)
@@ -177,16 +179,7 @@ func paging(input io.Reader, output io.Writer) {
 	c.Run()
 }
 
-func parseOptions() {
-	if len(os.Args) == 1 {
-		usage := `
-Usage: %v [<option> [<option args>]] -- <command> <args>
-       %v --help for more information
-`
-		fmt.Fprintf(os.Stderr, usage[1:], os.Args[0], os.Args[0])
-		os.Exit(1)
-	}
-
+func parseOptions() []string {
 	var (
 		bash bool
 		fish bool
@@ -202,16 +195,27 @@ Usage: %v [<option> [<option args>]] -- <command> <args>
 
 	if bash {
 		fmt.Println(bashScript)
-		os.Exit(1)
+		return nil
 	}
 
 	if fish {
 		fmt.Println(fishScript)
-		os.Exit(1)
+		return nil
 	}
 
 	if zsh {
 		fmt.Println(zshScript)
-		os.Exit(1)
+		return nil
 	}
+
+	args := flag.Args()
+	if len(args) == 0 {
+		usage := `
+Usage: %v [<option> [<option args>]] -- <command> [<args>]
+       %v --help for more information
+`
+		fmt.Fprintf(os.Stderr, usage[1:], os.Args[0], os.Args[0])
+	}
+
+	return args
 }
