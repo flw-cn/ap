@@ -36,17 +36,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	name, err := exec.LookPath(args[0])
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Can't exec %v: %v\n", args, err)
-		os.Exit(1)
-	}
-
 	var tty *os.File
 	var winSize *pty.Winsize
 	piped := false
 
-	cmd := exec.Command(name, args[1:]...)
+	cmd := exec.Command(args[0], args[1:]...)
 	if _, err := pty.GetsizeFull(os.Stdin); err != nil {
 		cmd.Stdin = os.Stdin
 	}
@@ -69,7 +63,7 @@ func main() {
 
 	// ap should only work under tty, otherwise fall back to doing nothing.
 	if tty == nil || piped {
-		err = syscall.Exec(name, args, os.Environ())
+		err := syscall.Exec(args[0], args, os.Environ())
 		fmt.Fprintf(os.Stderr, "Can't exec %v: %v\n", args, err)
 		os.Exit(1)
 	}
