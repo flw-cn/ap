@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 )
 
@@ -43,6 +44,7 @@ func main() {
 
 	var tty *os.File
 	var winSize *pty.Winsize
+	piped := false
 
 	cmd := exec.Command(name, args[1:]...)
 	if _, err := pty.GetsizeFull(os.Stdin); err != nil {
@@ -54,6 +56,7 @@ func main() {
 		winSize = size
 	} else {
 		cmd.Stdout = os.Stdout
+		piped = piped || isPipe(os.Stdout)
 	}
 
 	if size, err := pty.GetsizeFull(os.Stderr); err == nil {
@@ -61,10 +64,11 @@ func main() {
 		winSize = size
 	} else {
 		cmd.Stderr = os.Stderr
+		piped = piped || isPipe(os.Stdout)
 	}
 
 	// ap should only work under tty, otherwise fall back to doing nothing.
-	if tty == nil {
+	if tty == nil || piped {
 		err = syscall.Exec(name, args, os.Environ())
 		fmt.Fprintf(os.Stderr, "Can't exec %v: %v\n", args, err)
 		os.Exit(1)
@@ -177,6 +181,12 @@ func paging(input io.Reader, output io.Writer) {
 	c.Stdin = input
 
 	c.Run()
+}
+
+func isPipe(file *os.File) bool {
+	stat := &unix.Stat_t{}
+	unix.Fstat(int(file.Fd()), stat)
+	return stat.Mode&unix.S_IFIFO == 1
 }
 
 func parseOptions() []string {
