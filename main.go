@@ -14,8 +14,6 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-
-	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 )
 
@@ -32,8 +30,159 @@ var optPager string
 var optHeight int
 
 func main() {
+	parseOptions()
+
+	args := flag.Args()
+	name, err := exec.LookPath(args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Can't exec %v: %v\n", args, err)
+		os.Exit(1)
+	}
+
+	var tty *os.File
+	var winSize *pty.Winsize
+
+	cmd := exec.Command(name, args[1:]...)
+	if _, err := pty.GetsizeFull(os.Stdin); err != nil {
+		cmd.Stdin = os.Stdin
+	}
+
+	if size, err := pty.GetsizeFull(os.Stdout); err == nil {
+		tty = os.Stdout
+		winSize = size
+	} else {
+		cmd.Stdout = os.Stdout
+	}
+
+	if size, err := pty.GetsizeFull(os.Stderr); err == nil {
+		tty = os.Stderr
+		winSize = size
+	} else {
+		cmd.Stderr = os.Stderr
+	}
+
+	// ap should only work under tty, otherwise fall back to doing nothing.
+	if tty == nil {
+		err = syscall.Exec(name, args, os.Environ())
+		os.Exit(1)
+	}
+
+	exitCode := run(cmd, tty, winSize)
+
+	os.Exit(exitCode)
+}
+
+func run(cmd *exec.Cmd, tty *os.File, winSize *pty.Winsize) int {
+	p, err := pty.StartWithAttrs(cmd, winSize, &syscall.SysProcAttr{
+		Setsid:  true,
+		Setctty: true,
+		Ctty:    int(tty.Fd()),
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Can't exec %v: %v\n", cmd.Args, err)
+		os.Exit(1)
+	}
+
+	state, err := term.MakeRaw(0)
+	if state != nil {
+		defer term.Restore(0, state)
+	}
+
+	output := new(bytes.Buffer)
+
+	go func() {
+		checkAppType := time.Tick(1 * time.Second)
+		copyStdin := time.Tick(50 * time.Millisecond)
+		signalCh := make(chan os.Signal, 10)
+		signal.Notify(signalCh, syscall.SIGCHLD)
+		signal.Notify(signalCh, os.Interrupt)
+		signal.Notify(signalCh, syscall.SIGWINCH)
+		for {
+			select {
+			case sig := <-signalCh:
+				switch sig {
+				case os.Interrupt:
+					cmd.Process.Signal(os.Interrupt)
+					break
+				case syscall.SIGWINCH:
+					var err error
+					winSize, err = pty.GetsizeFull(os.Stdout)
+					if err == nil {
+						pty.Setsize(p, winSize)
+					}
+				case syscall.SIGCHLD:
+					return
+				}
+
+			case <-checkAppType:
+				if bytes.Contains(output.Bytes(), []byte("\x1b[?1049h")) {
+					syscall.SetNonblock(0, false)
+					go keepCopying(p, os.Stdin)
+					return
+				}
+
+			case <-copyStdin:
+				syscall.SetNonblock(0, true)
+				io.Copy(p, os.Stdin)
+				syscall.SetNonblock(0, false)
+			}
+		}
+	}()
+
+	keepCopying(output, io.TeeReader(p, tty))
+	cmd.Wait()
+
+	if optHeight == 0 {
+		optHeight = int(winSize.Rows) * 80 / 100
+	} else if optHeight < 0 {
+		optHeight = int(winSize.Rows) * -optHeight / 100
+	}
+
+	if bytes.Count(output.Bytes(), []byte("\n")) > optHeight &&
+		!bytes.Contains(output.Bytes(), []byte("\x1b[?1049h")) {
+		paging(output, tty)
+	}
+
+	return cmd.ProcessState.ExitCode()
+}
+
+func keepCopying(dst io.Writer, src io.Reader) {
+	for {
+		_, err := io.Copy(dst, src)
+		if err == nil {
+			break
+		}
+	}
+}
+
+func paging(input io.Reader, output io.Writer) {
+	var pager string
+	if optPager != "" {
+		pager = optPager
+	} else if s := os.Getenv("AP_PAGER"); s != "" {
+		pager = s
+	} else if s := os.Getenv("PAGER"); s != "" {
+		pager = s
+	} else {
+		pager = "less -Fr"
+	}
+
+	args := strings.Fields(pager)
+	c := exec.Command(args[0], args[1:]...)
+	c.Stdout = output
+	c.Stderr = output
+	c.Stdin = input
+
+	c.Run()
+}
+
+func parseOptions() {
 	if len(os.Args) == 1 {
-		fmt.Fprintf(os.Stderr, "Usage: %v [<option> [<option args>]] -- <command> <args>\n", os.Args[0])
+		usage := `
+Usage: %v [<option> [<option args>]] -- <command> <args>
+       %v --help for more information
+`
+		fmt.Fprintf(os.Stderr, usage[1:], os.Args[0], os.Args[0])
 		os.Exit(1)
 	}
 
@@ -52,146 +201,16 @@ func main() {
 
 	if bash {
 		fmt.Println(bashScript)
-		return
+		os.Exit(1)
 	}
 
 	if fish {
 		fmt.Println(fishScript)
-		return
+		os.Exit(1)
 	}
 
 	if zsh {
 		fmt.Println(zshScript)
-		return
-	}
-
-	// ap should only work under tty, otherwise fall back to doing nothing.
-	isTTY := true
-	for fd := 0; fd < 3; fd++ {
-		if _, err := unix.IoctlGetWinsize(fd, unix.TIOCGWINSZ); err != nil {
-			isTTY = false
-			break
-		}
-	}
-
-	if !isTTY {
-		args := flag.Args()
-		name, err := exec.LookPath(args[0])
-		if err != nil {
-			os.Exit(1)
-		}
-		err = syscall.Exec(name, args, os.Environ())
 		os.Exit(1)
 	}
-
-	run()
-}
-
-func run() {
-	args := flag.Args()
-	c := exec.Command(args[0], args[1:]...)
-
-	p, err := pty.StartWithSize(c, getSize(os.Stdout))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Can't exec %v: %v\n", args, err)
-		os.Exit(1)
-	}
-
-	state, _ := term.MakeRaw(0)
-
-	go func() {
-		signalCh := make(chan os.Signal, 10)
-		signal.Notify(signalCh, os.Interrupt)
-		signal.Notify(signalCh, syscall.SIGWINCH)
-
-		for sig := range signalCh {
-			switch sig {
-			case os.Interrupt:
-				c.Process.Signal(os.Interrupt)
-				break
-			case syscall.SIGWINCH:
-				pty.Setsize(p, getSize(os.Stdout))
-			}
-		}
-	}()
-
-	output := new(bytes.Buffer)
-
-	go func() {
-		signalCh := make(chan os.Signal, 10)
-		signal.Notify(signalCh, syscall.SIGCHLD)
-		waitStdin := time.After(1 * time.Second)
-		stdinReady := false
-		for {
-			select {
-			case <-signalCh:
-				return
-
-			case <-waitStdin:
-				if bytes.Contains(output.Bytes(), []byte("\x1b[?1049h")) {
-					io.Copy(p, os.Stdin)
-					return
-				} else {
-					stdinReady = true
-				}
-
-			default:
-				if stdinReady {
-					syscall.SetNonblock(0, true)
-					os.Stdin.SetReadDeadline(time.Now().Add(50 * time.Millisecond))
-					io.Copy(p, os.Stdin)
-					syscall.SetNonblock(0, false)
-				}
-			}
-		}
-	}()
-
-	for {
-		_, err := io.Copy(output, io.TeeReader(p, os.Stderr))
-		if err == nil {
-			break
-		}
-	}
-	c.Wait()
-
-	winSize := getSize(os.Stdout)
-	if optHeight == 0 {
-		optHeight = int(winSize.Rows) * 80 / 100
-	} else if optHeight < 0 {
-		optHeight = int(winSize.Rows) * -optHeight / 100
-	}
-
-	if bytes.Count(output.Bytes(), []byte("\n")) > optHeight &&
-		!bytes.Contains(output.Bytes(), []byte("\x1b[?1049h")) {
-		paging(output)
-	}
-
-	term.Restore(0, state)
-	os.Exit(c.ProcessState.ExitCode())
-}
-
-func paging(output io.Reader) {
-	var pager string
-	if optPager != "" {
-		pager = optPager
-	} else if s := os.Getenv("AP_PAGER"); s != "" {
-		pager = s
-	} else if s := os.Getenv("PAGER"); s != "" {
-		pager = s
-	} else {
-		pager = "less -Fr"
-	}
-
-	args := strings.Fields(pager)
-	c := exec.Command(args[0], args[1:]...)
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
-	c.Stdin = output
-
-	c.Run()
-}
-
-func getSize(p *os.File) *pty.Winsize {
-	rows, cols, _ := pty.Getsize(p)
-	return &pty.Winsize{Rows: uint16(rows), Cols: uint16(cols), X: 0, Y: 0}
 }
