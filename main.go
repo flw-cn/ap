@@ -64,6 +64,7 @@ func main() {
 	// ap should only work under tty, otherwise fall back to doing nothing.
 	if tty == nil {
 		err = syscall.Exec(name, args, os.Environ())
+		fmt.Fprintf(os.Stderr, "Can't exec %v: %v\n", args, err)
 		os.Exit(1)
 	}
 
