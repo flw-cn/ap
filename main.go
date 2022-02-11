@@ -156,7 +156,7 @@ func run(cmd *exec.Cmd, tty *os.File, winSize *pty.Winsize) int {
 func keepCopying(dst io.Writer, src io.Reader) {
 	for {
 		_, err := io.Copy(dst, src)
-		if err == nil {
+		if err != nil {
 			break
 		}
 	}
