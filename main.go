@@ -11,6 +11,9 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
+	"runtime/debug"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -285,11 +288,48 @@ func isPipe(file *os.File) bool {
 	return stat.Mode&unix.S_IFIFO != 0
 }
 
+func printVersion() {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		fmt.Println("Can't get build info.")
+		return
+	}
+
+	version := info.Main.Version
+	fmt.Printf("%v version %s\n", filepath.Base(info.Path), version)
+
+	l := len(version)
+	if l < len("vX.0.0-yyyymmddhhmmss-abcdefabcdef") {
+		return
+	}
+
+	tag := version[0 : l-30]
+	typ := version[l-30 : l-29]
+	time, _ := time.Parse("20060102150405", version[l-27:l-13])
+	commit := version[l-12 : l]
+	timeStr := time.Local().Format("2006-01-02 15:04:05 MST")
+
+	if version[0:7] == "v0.0.0-" {
+		tag = "untagged branch"
+	} else if typ == "-" {
+		parts := strings.Split(tag, ".")
+		patch, _ := strconv.Atoi(parts[2])
+		if patch > 0 {
+			patch = patch - 1
+		}
+		tag = parts[0] + "." + parts[1] + "." + strconv.Itoa(patch)
+	}
+
+	fmt.Printf("base on %s, commit at %s, commit ID is %s\n",
+		tag, timeStr, commit)
+}
+
 func parseOptions() []string {
 	var (
 		bash bool
 		fish bool
 		zsh  bool
+		ver  bool
 	)
 
 	flag.StringVar(&optPager, "pager", "", "what pager to be used, defaults to `less -Fr'")
@@ -297,6 +337,7 @@ func parseOptions() []string {
 	flag.BoolVar(&bash, "bash", false, "output bash script")
 	flag.BoolVar(&fish, "fish", false, "output fish script")
 	flag.BoolVar(&zsh, "zsh", false, "output zsh script")
+	flag.BoolVar(&ver, "version", false, "print version information")
 	flag.Parse()
 
 	if bash {
@@ -322,6 +363,11 @@ func parseOptions() []string {
 		} else {
 			optPager = "less -Fr"
 		}
+	}
+
+	if ver {
+		printVersion()
+		return nil
 	}
 
 	args := flag.Args()
