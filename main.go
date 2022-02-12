@@ -121,7 +121,7 @@ func run(cmd *exec.Cmd, tty *os.File, winSize *pty.Winsize) int {
 			case <-checkAppType:
 				if bytes.Contains(output.Bytes(), []byte("\x1b[?1049h")) {
 					syscall.SetNonblock(0, false)
-					go keepCopying(p, os.Stdin)
+					go relayTTY(p, os.Stdin)
 					return
 				}
 
@@ -133,7 +133,7 @@ func run(cmd *exec.Cmd, tty *os.File, winSize *pty.Winsize) int {
 		}
 	}()
 
-	keepCopying(output, io.TeeReader(p, tty))
+	relayTTY(io.MultiWriter(output, tty), p)
 	cmd.Wait()
 
 	if state != nil {
@@ -152,15 +152,6 @@ func run(cmd *exec.Cmd, tty *os.File, winSize *pty.Winsize) int {
 	}
 
 	return cmd.ProcessState.ExitCode()
-}
-
-func keepCopying(dst io.Writer, src io.Reader) {
-	for {
-		_, err := io.Copy(dst, src)
-		if err == nil {
-			break
-		}
-	}
 }
 
 func paging(input io.Reader, output io.Writer) {
