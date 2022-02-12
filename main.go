@@ -95,8 +95,8 @@ func run(cmd *exec.Cmd, tty *os.File, winSize *pty.Winsize) int {
 	output := new(bytes.Buffer)
 
 	go func() {
-		checkAppType := time.Tick(1 * time.Second)
-		copyStdin := time.Tick(50 * time.Millisecond)
+		checkAppType := time.NewTicker(1 * time.Second)
+		copyStdin := time.NewTicker(50 * time.Millisecond)
 		signalCh := make(chan os.Signal, 10)
 		signal.Notify(signalCh, syscall.SIGCHLD)
 		signal.Notify(signalCh, os.Interrupt)
@@ -118,14 +118,15 @@ func run(cmd *exec.Cmd, tty *os.File, winSize *pty.Winsize) int {
 					return
 				}
 
-			case <-checkAppType:
+			case <-checkAppType.C:
 				if bytes.Contains(output.Bytes(), []byte("\x1b[?1049h")) {
 					syscall.SetNonblock(0, false)
+					checkAppType.Stop()
+					copyStdin.Stop()
 					go relayTTY(p, os.Stdin)
-					return
 				}
 
-			case <-copyStdin:
+			case <-copyStdin.C:
 				syscall.SetNonblock(0, true)
 				io.Copy(p, os.Stdin)
 				syscall.SetNonblock(0, false)
