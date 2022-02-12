@@ -91,9 +91,6 @@ func run(cmd *exec.Cmd, tty *os.File, winSize *pty.Winsize) int {
 	}
 
 	state, err := term.MakeRaw(0)
-	if state != nil {
-		defer term.Restore(0, state)
-	}
 
 	output := new(bytes.Buffer)
 
@@ -138,6 +135,10 @@ func run(cmd *exec.Cmd, tty *os.File, winSize *pty.Winsize) int {
 
 	keepCopying(output, io.TeeReader(p, tty))
 	cmd.Wait()
+
+	if state != nil {
+		term.Restore(0, state)
+	}
 
 	if optHeight == 0 {
 		optHeight = int(winSize.Rows) * 80 / 100
