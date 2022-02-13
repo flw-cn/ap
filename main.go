@@ -3,9 +3,11 @@ package main
 import (
 	"bytes"
 	_ "embed"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -93,6 +95,7 @@ func run(cmd *exec.Cmd, tty *os.File, winSize *pty.Winsize) int {
 	state, err := term.MakeRaw(0)
 
 	output := new(bytes.Buffer)
+	quit := make(chan bool, 10)
 
 	go func() {
 		checkAppType := time.NewTicker(1 * time.Second)
@@ -115,15 +118,17 @@ func run(cmd *exec.Cmd, tty *os.File, winSize *pty.Winsize) int {
 						pty.Setsize(p, winSize)
 					}
 				case syscall.SIGCHLD:
+					quit <- true // twice for break two different goroutines
+					quit <- true
 					return
 				}
 
 			case <-checkAppType.C:
 				if bytes.Contains(output.Bytes(), []byte("\x1b[?1049h")) {
-					syscall.SetNonblock(0, false)
 					checkAppType.Stop()
 					copyStdin.Stop()
-					go relayTTY(p, os.Stdin)
+					syscall.SetNonblock(0, false)
+					go relayTTY(p, os.Stdin, quit)
 				}
 
 			case <-copyStdin.C:
@@ -134,7 +139,7 @@ func run(cmd *exec.Cmd, tty *os.File, winSize *pty.Winsize) int {
 		}
 	}()
 
-	relayTTY(io.MultiWriter(output, tty), p)
+	relayTTY(io.MultiWriter(output, tty), p, quit)
 	cmd.Wait()
 
 	if state != nil {
@@ -153,6 +158,26 @@ func run(cmd *exec.Cmd, tty *os.File, winSize *pty.Winsize) int {
 	}
 
 	return cmd.ProcessState.ExitCode()
+}
+
+func relayTTY(dst io.Writer, tty *os.File, quit <-chan bool) {
+	var perr *fs.PathError
+LOOP:
+	for {
+		select {
+		case <-quit:
+			break LOOP
+		default:
+			_, err := io.Copy(dst, tty)
+			if err == nil {
+				break LOOP
+			} else if errors.As(err, &perr) && perr.Err == syscall.EIO {
+				break LOOP
+			} else {
+				time.Sleep(20 * time.Millisecond)
+			}
+		}
+	}
 }
 
 func paging(input io.Reader, output io.Writer) {
