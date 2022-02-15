@@ -44,17 +44,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	var tty *os.File
 	var winSize *pty.Winsize
 	piped := false
 
 	cmd := exec.Command(name, args[1:]...)
+
 	if _, err := pty.GetsizeFull(os.Stdin); err != nil {
 		cmd.Stdin = os.Stdin
 	}
 
 	if size, err := pty.GetsizeFull(os.Stdout); err == nil {
-		tty = os.Stdout
 		winSize = size
 	} else {
 		cmd.Stdout = os.Stdout
@@ -62,140 +61,218 @@ func main() {
 	}
 
 	if size, err := pty.GetsizeFull(os.Stderr); err == nil {
-		tty = os.Stderr
 		winSize = size
 	} else {
 		cmd.Stderr = os.Stderr
-		piped = piped || isPipe(os.Stdout)
+		piped = piped || isPipe(os.Stderr)
 	}
 
 	// ap should only work under tty, otherwise fall back to doing nothing.
-	if tty == nil || piped {
+	if winSize == nil || piped {
 		err = syscall.Exec(name, args, os.Environ())
 		fmt.Fprintf(os.Stderr, "Can't exec %v: %v\n", args, err)
 		os.Exit(1)
 	}
 
-	exitCode := run(cmd, tty, winSize)
+	runner := &Runner{
+		cmd:     cmd,
+		winSize: winSize,
+	}
+
+	exitCode := runner.Run()
+
+	if optHeight == 0 {
+		optHeight = int(runner.winSize.Rows) * 80 / 100
+	} else if optHeight < 0 {
+		optHeight = int(runner.winSize.Rows) * -optHeight / 100
+	}
+
+	if strings.Count(runner.output.String(), "\n") > optHeight {
+		paging(&runner.output, runner.tty)
+	}
 
 	os.Exit(exitCode)
 }
 
-func run(cmd *exec.Cmd, tty *os.File, winSize *pty.Winsize) int {
-	p, err := pty.StartWithAttrs(cmd, winSize, &syscall.SysProcAttr{
-		Setsid:  true,
-		Setctty: true,
-		Ctty:    int(tty.Fd()),
-	})
+type Runner struct {
+	cmd      *exec.Cmd    // the command to be run
+	tty      *os.File     // local TTY device file
+	ttyState *term.State  // the old state of local TTY
+	pty      *os.File     // PTY master for run cmd
+	output   ScreenBuffer // the command TTY output
+	winSize  *pty.Winsize // the window size of local TTY & PTY master
+	quit     bool         // indicates whether the child process has exited
+}
+
+func (r *Runner) Run() int {
+	var err error
+
+	r.tty, err = os.OpenFile("/dev/tty", os.O_RDWR, 0644)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Can't exec %v: %v\n", cmd.Args, err)
+		r.tty = os.Stdin
+	}
+
+	r.ttyState, err = term.MakeRaw(int(r.tty.Fd()))
+	if err == nil {
+		defer term.Restore(int(r.tty.Fd()), r.ttyState)
+	}
+
+	err = r.StartProcess()
+	if err != nil {
+		fmt.Fprintf(r.tty, "Can't exec %v: %v\r\n", r.cmd.Args, err)
 		return 1
 	}
 
-	state, err := term.MakeRaw(0)
+	go r.relaySignal()
+	go r.relayInput()
+	r.relayOutput()
+	r.cmd.Wait()
 
-	output := new(bytes.Buffer)
-	quit := make(chan bool, 10)
-
-	go func() {
-		checkAppType := time.NewTicker(1 * time.Second)
-		copyStdin := time.NewTicker(50 * time.Millisecond)
-		signalCh := make(chan os.Signal, 10)
-		signal.Notify(signalCh, syscall.SIGCHLD)
-		signal.Notify(signalCh, os.Interrupt)
-		signal.Notify(signalCh, syscall.SIGWINCH)
-		for {
-			select {
-			case sig := <-signalCh:
-				switch sig {
-				case os.Interrupt:
-					cmd.Process.Signal(os.Interrupt)
-					break
-				case syscall.SIGWINCH:
-					var err error
-					winSize, err = pty.GetsizeFull(os.Stdout)
-					if err == nil {
-						pty.Setsize(p, winSize)
-					}
-				case syscall.SIGCHLD:
-					quit <- true // twice for break two different goroutines
-					quit <- true
-					return
-				}
-
-			case <-checkAppType.C:
-				if bytes.Contains(output.Bytes(), []byte("\x1b[?1049h")) {
-					checkAppType.Stop()
-					copyStdin.Stop()
-					syscall.SetNonblock(0, false)
-					go relayTTY(p, os.Stdin, quit)
-				}
-
-			case <-copyStdin.C:
-				syscall.SetNonblock(0, true)
-				io.Copy(p, os.Stdin)
-				syscall.SetNonblock(0, false)
-			}
-		}
-	}()
-
-	relayTTY(io.MultiWriter(output, tty), p, quit)
-	cmd.Wait()
-
-	if state != nil {
-		term.Restore(0, state)
-	}
-
-	if optHeight == 0 {
-		optHeight = int(winSize.Rows) * 80 / 100
-	} else if optHeight < 0 {
-		optHeight = int(winSize.Rows) * -optHeight / 100
-	}
-
-	if bytes.Count(output.Bytes(), []byte("\n")) > optHeight &&
-		!bytes.Contains(output.Bytes(), []byte("\x1b[?1049h")) {
-		paging(output, tty)
-	}
-
-	return cmd.ProcessState.ExitCode()
+	return r.cmd.ProcessState.ExitCode()
 }
 
-func relayTTY(dst io.Writer, tty *os.File, quit <-chan bool) {
-	var perr *fs.PathError
+func (r *Runner) StartProcess() (err error) {
+	var tty *os.File
+
+	r.pty, tty, err = pty.Open()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tty.Close() }()
+
+	// hack to $GOROOT/src/syscall/exec_unix.go, ugly code
+	ttyFD := int(tty.Fd())
+	for i := 3; i <= ttyFD; i++ {
+		r.cmd.ExtraFiles = append(r.cmd.ExtraFiles, tty)
+	}
+
+	pty.Setsize(r.pty, r.winSize)
+
+	if r.cmd.Stdout == nil {
+		r.cmd.Stdout = tty
+	}
+	if r.cmd.Stderr == nil {
+		r.cmd.Stderr = tty
+	}
+	if r.cmd.Stdin == nil {
+		r.cmd.Stdin = tty
+	}
+
+	r.cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setsid:  true,
+		Setctty: true,
+		Ctty:    int(r.tty.Fd()),
+	}
+
+	if err = r.cmd.Start(); err != nil {
+		_ = r.pty.Close()
+		return err
+	}
+
+	return err
+}
+
+func (r *Runner) relaySignal() {
+	signalCh := make(chan os.Signal, 10)
+	signal.Notify(signalCh,
+		syscall.SIGCHLD,
+		syscall.SIGWINCH,
+		os.Interrupt,
+	)
+
 LOOP:
-	for {
-		select {
-		case <-quit:
-			break LOOP
-		default:
-			_, err := io.Copy(dst, tty)
+	for sig := range signalCh {
+		switch sig {
+		case os.Interrupt:
+			r.cmd.Process.Signal(os.Interrupt)
+		case syscall.SIGWINCH:
+			var err error
+			r.winSize, err = pty.GetsizeFull(os.Stdout)
 			if err == nil {
+				pty.Setsize(r.pty, r.winSize)
+			}
+		case syscall.SIGCHLD:
+			if r.cmd.Process.Signal(syscall.SIGCONT) != nil {
+				r.quit = true
 				break LOOP
-			} else if errors.As(err, &perr) && perr.Err == syscall.EIO {
-				break LOOP
-			} else {
-				time.Sleep(20 * time.Millisecond)
 			}
 		}
 	}
 }
 
-func paging(input io.Reader, output io.Writer) {
-	var pager string
-	if optPager != "" {
-		pager = optPager
-	} else if s := os.Getenv("AP_PAGER"); s != "" {
-		pager = s
-	} else if s := os.Getenv("PAGER"); s != "" {
-		pager = s
+func (r *Runner) relayInput() {
+	// waiting for the child process to start
+	time.Sleep(20 * time.Millisecond)
+	fd := int(r.tty.Fd())
+	for !r.quit {
+		syscall.SetNonblock(fd, true)
+		io.Copy(r.pty, r.tty)
+		syscall.SetNonblock(fd, false)
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+func (r *Runner) relayOutput() {
+	var perr *fs.PathError
+
+	for !r.quit {
+		_, err := io.Copy(io.MultiWriter(&r.output, r.tty), r.pty)
+		if err == nil {
+			break
+		} else if errors.As(err, &perr) && perr.Err == syscall.EIO {
+			break
+		} else {
+			time.Sleep(1 * time.Millisecond)
+		}
+	}
+}
+
+type ScreenBuffer struct {
+	buf       bytes.Buffer
+	altScreen bool // is currently writing to the alternate screen?
+}
+
+func (b *ScreenBuffer) Write(p []byte) (int, error) {
+	n := len(p)
+
+	if !b.altScreen {
+		flag := []byte("\x1b[?1049h")
+		if i := bytes.Index(p, flag); i > -1 {
+			p = p[0:i]
+			b.altScreen = true
+		}
 	} else {
-		pager = "less -Fr"
+		flag := []byte("\x1b[?1049l")
+		if i := bytes.Index(p, flag); i > -1 {
+			p = p[i+len(flag):]
+			b.altScreen = false
+		} else {
+			p = nil
+		}
 	}
 
-	args := strings.Fields(pager)
+	b.buf.Write(p)
+
+	return n, nil
+}
+
+func (b *ScreenBuffer) Read(p []byte) (int, error) {
+	return b.buf.Read(p)
+}
+
+func (b *ScreenBuffer) String() string {
+	return b.buf.String()
+}
+
+func (b *ScreenBuffer) Bytes() []byte {
+	return b.buf.Bytes()
+}
+
+func paging(input io.Reader, tty *os.File) {
+	args := strings.Fields(optPager)
 	c := exec.Command(args[0], args[1:]...)
-	c.Stdout = output
-	c.Stderr = output
+	c.Stdout = tty
+	c.Stderr = tty
 	c.Stdin = input
 
 	c.Run()
@@ -204,7 +281,7 @@ func paging(input io.Reader, output io.Writer) {
 func isPipe(file *os.File) bool {
 	stat := &unix.Stat_t{}
 	unix.Fstat(int(file.Fd()), stat)
-	return stat.Mode&unix.S_IFIFO == 1
+	return stat.Mode&unix.S_IFIFO != 0
 }
 
 func parseOptions() []string {
@@ -234,6 +311,16 @@ func parseOptions() []string {
 	if zsh {
 		fmt.Println(zshScript)
 		return nil
+	}
+
+	if optPager == "" {
+		if s := os.Getenv("AP_PAGER"); s != "" {
+			optPager = s
+		} else if s := os.Getenv("PAGER"); s != "" {
+			optPager = s
+		} else {
+			optPager = "less -Fr"
+		}
 	}
 
 	args := flag.Args()
