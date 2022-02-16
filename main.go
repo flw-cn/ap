@@ -138,13 +138,7 @@ func (r *Runner) StartProcess() (err error) {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = tty.Close() }()
-
-	// hack to $GOROOT/src/syscall/exec_unix.go, ugly code
-	ttyFD := int(tty.Fd())
-	for i := 3; i <= ttyFD; i++ {
-		r.cmd.ExtraFiles = append(r.cmd.ExtraFiles, tty)
-	}
+	defer tty.Close()
 
 	pty.Setsize(r.pty, r.winSize)
 
@@ -158,14 +152,21 @@ func (r *Runner) StartProcess() (err error) {
 		r.cmd.Stdin = tty
 	}
 
+	// NOTE: the index of `tty' here is 0
+	r.cmd.ExtraFiles = []*os.File{tty}
 	r.cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setsid:  true,
+		// Setsid lets the child process to create a new session
+		Setsid: true,
+		// Setctty & Ctty lets child process connects to a controlling terminal
 		Setctty: true,
-		Ctty:    int(r.tty.Fd()),
+		// NOTE: Golang requires us to predict the TTY file descriptor in the
+		// child processes.
+		// `3' is reserved for stdio, `0' is the index of `tty' in `ExtraFiles'
+		Ctty: 3 + 0,
 	}
 
 	if err = r.cmd.Start(); err != nil {
-		_ = r.pty.Close()
+		r.pty.Close()
 		return err
 	}
 
