@@ -15,7 +15,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
-	"syscall"
+	"sync"
 	"time"
 
 	"github.com/creack/pty"
@@ -72,7 +72,7 @@ func main() {
 
 	// ap should only work under tty, otherwise fall back to doing nothing.
 	if winSize == nil || piped {
-		err = syscall.Exec(name, args, os.Environ())
+		err = unix.Exec(name, args, os.Environ())
 		fmt.Fprintf(os.Stderr, "Can't exec %v: %v\n", args, err)
 		os.Exit(1)
 	}
@@ -98,13 +98,14 @@ func main() {
 }
 
 type Runner struct {
-	cmd      *exec.Cmd    // the command to be run
-	tty      *os.File     // local TTY device file
-	ttyState *term.State  // the old state of local TTY
-	pty      *os.File     // PTY master for run cmd
-	output   ScreenBuffer // the command TTY output
-	winSize  *pty.Winsize // the window size of local TTY & PTY master
-	quit     bool         // indicates whether the child process has exited
+	cmd      *exec.Cmd      // the command to be run
+	tty      *os.File       // local TTY device file
+	ttyState *term.State    // the old state of local TTY
+	pty      *os.File       // PTY master for run cmd
+	output   ScreenBuffer   // the command TTY output
+	winSize  *pty.Winsize   // the window size of local TTY & PTY master
+	wg       sync.WaitGroup // wait for relay* quit
+	quit     bool           // indicates whether the child process has exited
 }
 
 func (r *Runner) Run() int {
@@ -126,10 +127,13 @@ func (r *Runner) Run() int {
 		return 1
 	}
 
-	go r.relaySignal()
+	r.wg.Add(3)
+	sigCh := make(chan os.Signal, 10)
+	go r.relaySignal(sigCh)
 	go r.relayInput()
-	r.relayOutput()
-	r.cmd.Wait()
+	go r.relayOutput()
+	go func() { r.cmd.Wait(); close(sigCh); r.quit = true }()
+	r.wg.Wait()
 
 	return r.cmd.ProcessState.ExitCode()
 }
@@ -157,7 +161,7 @@ func (r *Runner) StartProcess() (err error) {
 
 	// NOTE: the index of `tty' here is 0
 	r.cmd.ExtraFiles = []*os.File{tty}
-	r.cmd.SysProcAttr = &syscall.SysProcAttr{
+	r.cmd.SysProcAttr = &unix.SysProcAttr{
 		// Setsid lets the child process to create a new session
 		Setsid: true,
 		// Setctty & Ctty lets child process connects to a controlling terminal
@@ -176,32 +180,21 @@ func (r *Runner) StartProcess() (err error) {
 	return err
 }
 
-func (r *Runner) relaySignal() {
-	signalCh := make(chan os.Signal, 10)
-	signal.Notify(signalCh,
-		syscall.SIGCHLD,
-		syscall.SIGWINCH,
-		os.Interrupt,
-	)
+func (r *Runner) relaySignal(signalCh chan os.Signal) {
+	signal.Notify(signalCh, unix.SIGWINCH)
 
-LOOP:
 	for sig := range signalCh {
 		switch sig {
-		case os.Interrupt:
-			r.cmd.Process.Signal(os.Interrupt)
-		case syscall.SIGWINCH:
+		case unix.SIGWINCH:
 			var err error
 			r.winSize, err = pty.GetsizeFull(os.Stdout)
 			if err == nil {
 				pty.Setsize(r.pty, r.winSize)
 			}
-		case syscall.SIGCHLD:
-			if r.cmd.Process.Signal(syscall.SIGCONT) != nil {
-				r.quit = true
-				break LOOP
-			}
 		}
 	}
+
+	r.wg.Done()
 }
 
 func (r *Runner) relayInput() {
@@ -220,6 +213,8 @@ func (r *Runner) relayInput() {
 			}
 		}
 	}
+
+	r.wg.Done()
 }
 
 func (r *Runner) relayOutput() {
@@ -229,12 +224,14 @@ func (r *Runner) relayOutput() {
 		_, err := io.Copy(io.MultiWriter(&r.output, r.tty), r.pty)
 		if err == nil {
 			break
-		} else if errors.As(err, &perr) && perr.Err == syscall.EIO {
+		} else if errors.As(err, &perr) && perr.Err == unix.EIO {
 			break
 		} else {
 			time.Sleep(1 * time.Millisecond)
 		}
 	}
+
+	r.wg.Done()
 }
 
 type ScreenBuffer struct {
