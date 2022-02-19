@@ -205,14 +205,20 @@ LOOP:
 }
 
 func (r *Runner) relayInput() {
-	// waiting for the child process to start
-	time.Sleep(20 * time.Millisecond)
+	buf := make([]byte, 1024)
 	fd := int(r.tty.Fd())
+	fds := unix.FdSet{}
+	fds.Set(fd)
+
 	for !r.quit {
-		syscall.SetNonblock(fd, true)
-		io.Copy(r.pty, r.tty)
-		syscall.SetNonblock(fd, false)
-		time.Sleep(20 * time.Millisecond)
+		timeout := unix.Timeval{Sec: 0, Usec: 30000}
+		rs := fds
+		n, _ := unix.Select(fd+1, &rs, nil, nil, &timeout)
+		if n > 0 {
+			if n, err := r.tty.Read(buf); err == nil && n > 0 {
+				r.pty.Write(buf[0:n])
+			}
+		}
 	}
 }
 
