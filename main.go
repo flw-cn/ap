@@ -32,6 +32,7 @@ var fishScript string
 //go:embed ap.zsh
 var zshScript string
 
+var optRender string
 var optPager string
 var optHeight int
 
@@ -77,8 +78,28 @@ func main() {
 		os.Exit(1)
 	}
 
+	var render *exec.Cmd
+	if optRender != "" {
+		r, w, err := os.Pipe()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Can't create pipe: %v\n", err)
+			os.Exit(1)
+		}
+
+		args := strings.Fields(optRender)
+		render = exec.Command(args[0], args[1:]...)
+		render.Stdout = cmd.Stdout
+		render.Stderr = cmd.Stderr
+		render.Stdin = r
+		cmd.Stdout = w
+		if cmd.Stderr == nil {
+			cmd.Stderr = os.Stderr
+		}
+	}
+
 	runner := &Runner{
 		cmd:     cmd,
+		render:  render,
 		winSize: winSize,
 	}
 
@@ -99,9 +120,10 @@ func main() {
 
 type Runner struct {
 	cmd      *exec.Cmd      // the command to be run
+	render   *exec.Cmd      // the render to colour in the output of the command
 	tty      *os.File       // local TTY device file
 	ttyState *term.State    // the old state of local TTY
-	pty      *os.File       // PTY master for run cmd
+	pty      *os.File       // PTY master for run command
 	output   ScreenBuffer   // the command TTY output
 	winSize  *pty.Winsize   // the window size of local TTY & PTY master
 	wg       sync.WaitGroup // wait for relay* quit
@@ -121,10 +143,19 @@ func (r *Runner) Run() int {
 		defer term.Restore(int(r.tty.Fd()), r.ttyState)
 	}
 
-	err = r.StartProcess()
+	cmd := r.cmd
+	if r.render != nil {
+		cmd = r.render
+	}
+
+	err = r.StartProcessInPty(cmd)
 	if err != nil {
 		fmt.Fprintf(r.tty, "Can't exec %v: %v\r\n", r.cmd.Args, err)
 		return 1
+	}
+
+	if r.render != nil {
+		go func() { r.cmd.Run(); r.cmd.Stdout.(*os.File).Close() }()
 	}
 
 	r.wg.Add(3)
@@ -132,13 +163,13 @@ func (r *Runner) Run() int {
 	go r.relaySignal(sigCh)
 	go r.relayInput()
 	go r.relayOutput()
-	go func() { r.cmd.Wait(); close(sigCh); r.quit = true }()
+	go func() { cmd.Wait(); close(sigCh); r.quit = true }()
 	r.wg.Wait()
 
 	return r.cmd.ProcessState.ExitCode()
 }
 
-func (r *Runner) StartProcess() (err error) {
+func (r *Runner) StartProcessInPty(cmd *exec.Cmd) (err error) {
 	var tty *os.File
 
 	r.pty, tty, err = pty.Open()
@@ -149,19 +180,19 @@ func (r *Runner) StartProcess() (err error) {
 
 	pty.Setsize(r.pty, r.winSize)
 
-	if r.cmd.Stdout == nil {
-		r.cmd.Stdout = tty
+	if cmd.Stdout == nil {
+		cmd.Stdout = tty
 	}
-	if r.cmd.Stderr == nil {
-		r.cmd.Stderr = tty
+	if cmd.Stderr == nil {
+		cmd.Stderr = tty
 	}
-	if r.cmd.Stdin == nil {
-		r.cmd.Stdin = tty
+	if cmd.Stdin == nil {
+		cmd.Stdin = tty
 	}
 
 	// NOTE: the index of `tty' here is 0
-	r.cmd.ExtraFiles = []*os.File{tty}
-	r.cmd.SysProcAttr = &unix.SysProcAttr{
+	cmd.ExtraFiles = []*os.File{tty}
+	cmd.SysProcAttr = &unix.SysProcAttr{
 		// Setsid lets the child process to create a new session
 		Setsid: true,
 		// Setctty & Ctty lets child process connects to a controlling terminal
@@ -172,7 +203,7 @@ func (r *Runner) StartProcess() (err error) {
 		Ctty: 3 + 0,
 	}
 
-	if err = r.cmd.Start(); err != nil {
+	if err = cmd.Start(); err != nil {
 		r.pty.Close()
 		return err
 	}
@@ -289,6 +320,14 @@ func isPipe(file *os.File) bool {
 	stat := &unix.Stat_t{}
 	unix.Fstat(int(file.Fd()), stat)
 	return stat.Mode&unix.S_IFIFO != 0
+}
+
+func getRender(args []string) string {
+	if args[0] == "go" && args[1] == "doc" {
+		return "bat -f -l go --style snip --pager never"
+	} else {
+		return ""
+	}
 }
 
 func printVersion(w io.Writer) {
@@ -438,6 +477,7 @@ func parseOptions() []string {
 		ver  bool
 	)
 
+	flag.StringVar(&optRender, "render", "", "what render to be used, defaults to none")
 	flag.StringVar(&optPager, "pager", "", "what pager to be used, defaults to `less -Fr'")
 	flag.IntVar(&optHeight, "height", -80, "enable paging when the number of lines exceeds this height. negative numbers means percentages. defaults to -80(means 80%)")
 	flag.BoolVar(&bash, "bash", false, "output bash script")
@@ -483,6 +523,10 @@ Usage: %v [<option> [<option args>]] -- <command> [<args>]
        %v --help for more information
 `
 		fmt.Fprintf(os.Stderr, usage[1:], os.Args[0], os.Args[0])
+	}
+
+	if optRender == "" {
+		optRender = getRender(args)
 	}
 
 	return args
