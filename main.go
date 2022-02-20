@@ -32,7 +32,7 @@ var fishScript string
 //go:embed ap.zsh
 var zshScript string
 
-var optRender string
+var optRender []string
 var optPager string
 var optHeight int
 
@@ -79,21 +79,20 @@ func main() {
 	}
 
 	var render *exec.Cmd
-	if optRender != "" {
+	if optRender != nil {
 		r, w, err := os.Pipe()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Can't create pipe: %v\n", err)
 			os.Exit(1)
 		}
 
-		args := strings.Fields(optRender)
-		render = exec.Command(args[0], args[1:]...)
+		render = exec.Command(optRender[0], optRender[1:]...)
 		render.Stdout = cmd.Stdout
 		render.Stderr = cmd.Stderr
 		render.Stdin = r
 		cmd.Stdout = w
 		if cmd.Stderr == nil {
-			cmd.Stderr = os.Stderr
+			cmd.Stderr = w
 		}
 	}
 
@@ -322,11 +321,14 @@ func isPipe(file *os.File) bool {
 	return stat.Mode&unix.S_IFIFO != 0
 }
 
-func getRender(args []string) string {
+func getRender(args []string) []string {
 	if args[0] == "go" && args[1] == "doc" {
-		return "bat -f -l go --style snip --pager never"
+		return []string{
+			"bat", "--force-colorization", "--language", "go", "--style", "snip,header,grid", "--pager", "never",
+			"--file-name", strings.Join(args, " "),
+		}
 	} else {
-		return ""
+		return nil
 	}
 }
 
@@ -471,13 +473,14 @@ func ParseVersion(version string) (typ VersionType, tag, rev string, t time.Time
 
 func parseOptions() []string {
 	var (
-		bash bool
-		fish bool
-		zsh  bool
-		ver  bool
+		bash   bool
+		fish   bool
+		zsh    bool
+		ver    bool
+		render string
 	)
 
-	flag.StringVar(&optRender, "render", "", "what render to be used, defaults to none")
+	flag.StringVar(&render, "render", "", "what render to be used, defaults to none")
 	flag.StringVar(&optPager, "pager", "", "what pager to be used, defaults to `less -Fr'")
 	flag.IntVar(&optHeight, "height", -80, "enable paging when the number of lines exceeds this height. negative numbers means percentages. defaults to -80(means 80%)")
 	flag.BoolVar(&bash, "bash", false, "output bash script")
@@ -525,8 +528,10 @@ Usage: %v [<option> [<option args>]] -- <command> [<args>]
 		fmt.Fprintf(os.Stderr, usage[1:], os.Args[0], os.Args[0])
 	}
 
-	if optRender == "" {
+	if render == "" {
 		optRender = getRender(args)
+	} else {
+		optRender = strings.Fields(render)
 	}
 
 	return args
