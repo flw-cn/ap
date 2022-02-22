@@ -1,5 +1,5 @@
 set -q AUTO_PAGER_CMDS; or set AUTO_PAGER_CMDS  \
-    ls tree find fd cat                         \
+    ls tree find fd cat man                     \
     go cargo rustc                              \
     grep egrep fgrep rg ack ag ucg pt sift      \
     brew port emerge apt apt-get aptitude
