@@ -78,6 +78,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	if optRender == nil {
+		optRender = getRender(args, int(winSize.Cols), int(winSize.Rows))
+	}
+
 	var render *exec.Cmd
 	if optRender != nil {
 		r, w, err := os.Pipe()
@@ -321,18 +325,27 @@ func isPipe(file *os.File) bool {
 	return stat.Mode&unix.S_IFIFO != 0
 }
 
-func getRender(args []string) []string {
+func getRender(args []string, cols, rows int) []string {
 	if args[0] == "go" && args[1] == "doc" {
 		return []string{
-			"bat", "--force-colorization", "--language", "go", "--style", "snip,header,grid", "--pager", "never",
+			"bat",
+			"--pager", "never",
+			"--force-colorization",
+			"--italic-text", "always",
+			"--language", "go",
+			"--style", "snip,header,grid",
 			"--file-name", strings.Join(args, " "),
 		}
 	} else if args[0] == "man" {
 		os.Setenv("MANPAGER", "col -bx")
-		os.Setenv("MANROFFOPT", "-c")
+		os.Setenv("MANWIDTH", strconv.Itoa(cols))
 		return []string{
-			"bat", "--force-colorization", "--language", "man", "--style", "snip,header,grid", "--pager", "never",
-			"--file-name", strings.Join(args, " "),
+			"bat",
+			"--pager", "never",
+			"--force-colorization",
+			"--italic-text", "always",
+			"--language", "man",
+			"--style", "snip",
 		}
 	} else {
 		return nil
@@ -535,9 +548,7 @@ Usage: %v [<option> [<option args>]] -- <command> [<args>]
 		fmt.Fprintf(os.Stderr, usage[1:], os.Args[0], os.Args[0])
 	}
 
-	if render == "" {
-		optRender = getRender(args)
-	} else {
+	if render != "" {
 		optRender = strings.Fields(render)
 	}
 
