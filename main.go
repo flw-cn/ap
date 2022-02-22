@@ -327,6 +327,13 @@ func getRender(args []string) []string {
 			"bat", "--force-colorization", "--language", "go", "--style", "snip,header,grid", "--pager", "never",
 			"--file-name", strings.Join(args, " "),
 		}
+	} else if args[0] == "man" {
+		os.Setenv("MANPAGER", "col -bx")
+		os.Setenv("MANROFFOPT", "-c")
+		return []string{
+			"bat", "--force-colorization", "--language", "man", "--style", "snip,header,grid", "--pager", "never",
+			"--file-name", strings.Join(args, " "),
+		}
 	} else {
 		return nil
 	}
