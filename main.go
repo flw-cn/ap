@@ -347,6 +347,16 @@ func getRender(args []string, cols, rows int) []string {
 			"--language", "man",
 			"--style", "snip",
 		}
+	} else if n := len(args); args[0] == "cat" && n > 1 && !strings.HasPrefix(args[n-1], "-") {
+		fileName := args[n-1]
+		return []string{
+			"bat",
+			"--pager", "never",
+			"--force-colorization",
+			"--italic-text", "always",
+			"--style", "snip",
+			"--file-name", fileName,
+		}
 	} else {
 		return nil
 	}
