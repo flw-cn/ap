@@ -1,11 +1,23 @@
 # ap -- auto-pager
 
+ap is a shell utility that allows the output of other shell commands to automatically enter interactive page-flipping mode.
+
+ap consists of two parts, a binary program written in Go that captures the output of commands and supports page-flipping, and a set of shell scripts that create a wrapper with the same name for a user-specified list of commands.
+
+The usage of the commands after wrap is the same as before, and should not change the user's habits or cause any problems.
+
+*Read this in other languages: [English](README_en.md), [简体中文](README.md)
+
 ap 是一个 shell 工具，可以让其它 shell 命令的输出能够自动进入交互翻页模式。
 
 ap 由两部分组成，一个 Go 语言编写的二进制程序，负责捕获命令的输出并支持翻页，
 和一组 shell 脚本，负责为用户指定的命令清单创建与之同名的 wrapper。
 
 经过 wrap 之后的命令用法与原来相同，不应当改变用户操作习惯，不会给用户造成困扰。
+
+
+
+
 
 ## 安装
 
