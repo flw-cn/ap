@@ -6,7 +6,7 @@ ap consists of two parts, a binary program written in Go that captures the outpu
 
 The usage of the commands after wrap is the same as before, and should not change the user's habits or cause any problems.
 
-*Read this in other languages: [English](README_en.md), [简体中文](README.md)
+Read this in other languages: [English](README.en.md), [简体中文](README.md),[繁体中文](README.zh-TW.md),[Arabic](README.ar.md),[French](README.fr.md),[Hindi](README.hi.md)
 
 ap 是一个 shell 工具，可以让其它 shell 命令的输出能够自动进入交互翻页模式。
 
