@@ -212,7 +212,7 @@ The following conditions will not start the pager:
 
 -   When the output content is too small, see`$AUTO_PAGER_MIN_HEIGHT`。
 -   When ap detects that the command output contains`ESC [?1049h`sequence, the command is determined to be a full-screen application.
--   当命令尚未执行完成时。分页器只有命令执行完成后才会启动。
+-   When the command has not been executed yet. The pager does not start until the command execution is complete.
     -   `ping`and`tcpdump`and other such commands, you need to press`Ctrl-C`Paging does not start until the terminate command.
     -   `python`and`gdb`Such commands need to wait for the command to exit before starting paging.
 
