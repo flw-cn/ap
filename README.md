@@ -28,8 +28,8 @@ go install github.com/flw-cn/ap@master
 ## 配置
 
 * `bash`(#bash)
-* `fish`(#fish)
-* `zsh` (#zsh)
+* `fish`(#`fish`)
+* `zsh` (#`zsh`)
 
 ### bash
 
