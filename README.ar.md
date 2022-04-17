@@ -105,7 +105,7 @@ set AUTO_PAGER_CMDS_EXTRA ps last
 ap --fish | source
 ```
 
-另外，ap 也可以和 [grc](https://github.com/garabik/grc)بالعمل معًا ، يمكن تثبيت grc باستخدام Homebrew ضمن macOS:
+بالإضافة إلى ذلك ، يمكن أيضًا استخدام ap مع[grc](https://github.com/garabik/grc)بالعمل معًا ، يمكن تثبيت grc باستخدام Homebrew ضمن macOS:
 
 ```sh
 brew install grc
@@ -199,7 +199,7 @@ eval "$(ap --zsh)"
 
 إذا لم يتم تحديدها`AUTO_PAGER_MIN_HEIGHT`، الافتراضي هو`-80`،فى الحال`80%`。
 
-## 使用
+## استعمال
 
 الأوامر التي خضعت للالتفاف ap تحتاج فقط إلى استخدامها كالمعتاد.
 إذا كان هناك الكثير من المخرجات ، فسيتم استدعاء متغير البيئة تلقائيًا`$PAGER`يقوم جهاز النداء المحدد بالترحيل.
