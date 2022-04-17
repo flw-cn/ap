@@ -6,7 +6,7 @@ ap consists of two parts, a binary program written in Go that captures the outpu
 
 The usage of the commands after wrap is the same as before, and should not change the user's habits or cause any problems.
 
-\*Read this in other languages:[English](README_en.md),[Simplified Chinese](README.md)
+Read this in other languages:[English](README.en.md),[Simplified Chinese](README.md),[traditional Chinese](README.zh-TW.md),[Arabic](README.ar.md),[French](README.fr.md),[Hindi](README.hi.md)
 
 ap is a shell tool that enables the output of other shell commands to automatically enter interactive paging mode.
 
