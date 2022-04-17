@@ -1,4 +1,4 @@
-# ap - 自動尋呼機
+# ap -- 自動尋呼機
 
 ap 是一個 shell 實用程序，它允許其他 shell 命令的輸出自動進入交互式翻頁模式。
 
@@ -21,9 +21,9 @@ ap 由兩部分組成，一個 Go 語言編寫的二進製程序，負責捕獲�
 
 ## 配置
 
--   [重擊](#bash)
--   [魚](#fish)
--   [zsh](#zsh)
+-   `bash`（#bash）
+-   `fish`（＃魚）
+-   `zsh`зш
 
 ### 重擊
 
@@ -60,14 +60,14 @@ AUTO_PAGER_CMDS_WITH_GRC=(ps last dig diff)
 eval "$(ap --bash)"
 ```
 
-或者也可只在默认清单之上增加新的命令：
+或者也可只在默認清單之上增加新的命令：
 
 ```sh
 AUTO_PAGER_CMDS_WITH_GRC_EXTRA=(ps last)
 eval "$(ap --bash)"
 ```
 
-另外，環境變量`$AUTO_PAGER_MIN_HEIGHT` 可以控制开始分页的最小行数：
+另外，環境變量`$AUTO_PAGER_MIN_HEIGHT`可以控制開始分頁的最小行數：
 
 ```sh
 AUTO_PAGER_MIN_HEIGHT=30        # 输出超过 30 行时才开始分页
@@ -83,7 +83,7 @@ eval "$(ap --bash)"
 
 如果不指定`AUTO_PAGER_MIN_HEIGHT`，默認為`-80`，即`80%`。
 
-### 魚
+### `fish`
 
 在你的`~/.config/fish/config.fish`裡加入下面內容：
 
@@ -132,7 +132,7 @@ set AUTO_PAGER_MIN_HEIGHT 30        # 输出超过 30 行时才开始分页
 ap --fish | source
 ```
 
-如果配置為負數，則代表終端窗口高度的百分比：
+如果配置为负数，则代表终端窗口高度的百分比：
 
 ```sh
 set AUTO_PAGER_MIN_HEIGHT -50     # 输出超过终端窗口高度的 50% 时才开始分页
@@ -141,7 +141,7 @@ ap --fish | source
 
 如果不指定`AUTO_PAGER_MIN_HEIGHT`，默認為`-80`，即`80%`。
 
-### zsh
+### зш
 
 在你的`~/.zshrc`裡加入下面內容：
 
@@ -190,7 +190,7 @@ AUTO_PAGER_MIN_HEIGHT=30        # 输出超过 30 行时才开始分页
 eval "$(ap --zsh)"
 ```
 
-如果配置為負數，則代表終端窗口高度的百分比：
+如果配置为负数，则代表终端窗口高度的百分比：
 
 ```sh
 AUTO_PAGER_MIN_HEIGHT='-50'     # 输出超过终端窗口高度的 50% 时才开始分页
