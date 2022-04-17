@@ -27,9 +27,9 @@ go install github.com/flw-cn/ap@master
 
 ## 配置
 
-* [bash](#bash)
-* [fish](#fish)
-* [zsh](#zsh)
+* `bash`(#bash)
+* `fish`(#fish)
+* `zsh`(#zsh)
 
 ### bash
 
@@ -91,7 +91,7 @@ eval "$(ap --bash)"
 
 如果不指定 `AUTO_PAGER_MIN_HEIGHT`，默认为 `-80`，即 `80%`。
 
-### fish
+### `fish`
 
 在你的 `~/.config/fish/config.fish` 里加入下面内容：
 
