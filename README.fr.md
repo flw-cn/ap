@@ -1,4 +1,4 @@
-# ap -- téléavertisseur automatique
+# ap --`auto-pager`
 
 ap est un utilitaire shell qui permet à la sortie d'autres commandes shell d'entrer automatiquement en mode de retournement de page interactif.
 
@@ -33,7 +33,7 @@ L'utilisation de la commande après le bouclage est la même que celle d'origine
 eval "$(ap --bash)"
 ```
 
-ap encapsule un lot de commandes par défaut. Si vous n'êtes pas satisfait, vous pouvez le re-personnaliser via des variables d'environnement :
+ap encapsule un lot de commandes par défaut. Si vous n'êtes pas satisfait, vous pouvez le personnaliser à nouveau via des variables d'environnement :
 
 ```sh
 AUTO_PAGER_CMDS=(go cargo make)
@@ -53,7 +53,7 @@ De plus, ap peut également être utilisé avec[grc](https://github.com/garabik/
 brew install grc
 ```
 
-ap + grc encapsule un lot de commandes par défaut. Si vous n'êtes pas satisfait, vous pouvez le re-personnaliser via des variables d'environnement :
+ap + grc encapsule un lot de commandes par défaut. Si vous n'êtes pas satisfait, vous pouvez le personnaliser à nouveau via des variables d'environnement :
 
 ```sh
 AUTO_PAGER_CMDS_WITH_GRC=(ps last dig diff)
@@ -91,7 +91,7 @@ Si non spécifié`AUTO_PAGER_MIN_HEIGHT`,La valeur par défaut est`-80`,Tout de 
 ap --fish | source
 ```
 
-ap encapsule un lot de commandes par défaut. Si vous n'êtes pas satisfait, vous pouvez le re-personnaliser via des variables d'environnement :
+ap encapsule un lot de commandes par défaut. Si vous n'êtes pas satisfait, vous pouvez le personnaliser à nouveau via des variables d'environnement :
 
 ```sh
 set AUTO_PAGER_CMDS go cargo make
@@ -111,7 +111,7 @@ De plus, ap peut également être utilisé avec[grc](https://github.com/garabik/
 brew install grc
 ```
 
-ap + grc encapsule un lot de commandes par défaut. Si vous n'êtes pas satisfait, vous pouvez le re-personnaliser via des variables d'environnement :
+ap + grc encapsule un lot de commandes par défaut. Si vous n'êtes pas satisfait, vous pouvez le personnaliser à nouveau via des variables d'environnement :
 
 ```sh
 set AUTO_PAGER_CMDS_WITH_GRC ps last dig diff
@@ -141,7 +141,7 @@ ap --fish | source
 
 Si non spécifié`AUTO_PAGER_MIN_HEIGHT`,La valeur par défaut est`-80`,Tout de suite`80%`。
 
-### зш
+### `zsh`
 
 À votre`~/.zshrc`Ajoutez-y ce qui suit :
 
@@ -149,7 +149,7 @@ Si non spécifié`AUTO_PAGER_MIN_HEIGHT`,La valeur par défaut est`-80`,Tout de 
 eval "$(ap --zsh)"
 ```
 
-ap encapsule un lot de commandes par défaut. Si vous n'êtes pas satisfait, vous pouvez le re-personnaliser via des variables d'environnement :
+ap encapsule un lot de commandes par défaut. Si vous n'êtes pas satisfait, vous pouvez le personnaliser à nouveau via des variables d'environnement :
 
 ```sh
 AUTO_PAGER_CMDS=(go cargo make)
@@ -169,7 +169,7 @@ De plus, ap peut également être utilisé avec[grc](https://github.com/garabik/
 brew install grc
 ```
 
-ap + grc encapsule un lot de commandes par défaut. Si vous n'êtes pas satisfait, vous pouvez le re-personnaliser via des variables d'environnement :
+ap + grc encapsule un lot de commandes par défaut. Si vous n'êtes pas satisfait, vous pouvez le personnaliser à nouveau via des variables d'environnement :
 
 ```sh
 AUTO_PAGER_CMDS_WITH_GRC=(ps last dig diff)
@@ -201,8 +201,8 @@ Si non spécifié`AUTO_PAGER_MIN_HEIGHT`,La valeur par défaut est`-80`,Tout de 
 
 ## utiliser
 
-Les commandes qui ont subi un wrap ap doivent simplement être utilisées comme d'habitude.
-S'il y a trop de sortie, la variable d'environnement sera appelée automatiquement`$PAGER`Le téléavertisseur spécifié effectue la pagination.
+经过 ap wrap 过的命令只需要像往常一样使用就可以了。
+如果输出内容过多，会自动调用环境变量 `$PAGER`Le pager spécifié effectue la pagination.
 
 si votre`$PAGER`Les variables sont spéciales et ne peuvent pas être adaptées à ap. Vous pouvez également passer des variables d'environnement`$AP_PAGER`Réglez le téléavertisseur séparément pour ap.
 
@@ -222,11 +222,11 @@ Les conditions suivantes ne démarreront pas le téléavertisseur :
     -   Ne le fera pas.
 -   Il existe des commandes qui détectent le terminal et fournissent une sortie différente pour le mode terminal et le mode non terminal, changera-t-il sa sortie ?
     -   Ne le fera pas.
--   Comment puis-je diagnostiquer si je soupçonne que ap affecte la sortie de la commande ?
+-   Comment puis-je diagnostiquer si je soupçonne que ap affecte la sortie d'une commande ?
     -   tu peux l'utiliser`command foo`éxécuter`foo`, de sorte que ap ne soit pas appelé.
 -   Si j'ajoute habituellement la commande à la commande ap`| less`, y aura-t-il un problème ?
     -   Ne le fera pas.
--   La commande ap peut-elle toujours rediriger sa sortie ?
+-   La commande ap peut-elle également rediriger sa sortie ?
     -   Pouvez.
 -   La saisie semi-automatique des commandes AP sera-t-elle interrompue ?
     -   Ne le fera pas.
