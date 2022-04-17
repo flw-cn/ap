@@ -1,4 +1,4 @@
-# ap -- auto-pager
+# ap -- `auto-pager`
 
 ap is a shell utility that allows the output of other shell commands to automatically enter interactive page-flipping mode.
 
@@ -29,7 +29,7 @@ go install github.com/flw-cn/ap@master
 
 * `bash`(#bash)
 * `fish`(#fish)
-* `zsh`(#zsh)
+* `zsh` (#zsh)
 
 ### bash
 
@@ -151,7 +151,7 @@ ap --fish | source
 
 如果不指定 `AUTO_PAGER_MIN_HEIGHT`，默认为 `-80`，即 `80%`。
 
-### zsh
+###  `zsh`
 
 在你的 `~/.zshrc` 里加入下面内容：
 
