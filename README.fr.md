@@ -98,7 +98,7 @@ set AUTO_PAGER_CMDS go cargo make
 ap --fish | source
 ```
 
-或者也可只在默认清单之上增加新的命令：
+Ou ajoutez simplement de nouvelles commandes en haut de la liste par défaut :
 
 ```sh
 set AUTO_PAGER_CMDS_EXTRA ps last
@@ -213,7 +213,7 @@ Les conditions suivantes ne démarreront pas le téléavertisseur :
 -   Lorsque le contenu de sortie est trop petit, voir`$AUTO_PAGER_MIN_HEIGHT`。
 -   Lorsque ap détecte que la sortie de la commande contient`ESC [?1049h`séquence, la commande est déterminée comme étant une application plein écran.
 -   Lorsque la commande n'a pas encore été exécutée. Le téléavertisseur ne démarre pas tant que l'exécution de la commande n'est pas terminée.
-    -   `ping` 和 `tcpdump`et d'autres commandes de ce type, vous devez appuyer sur`Ctrl-C`La pagination ne démarre pas avant la commande terminate.
+    -   `ping`et`tcpdump`et d'autres commandes de ce type, vous devez appuyer sur`Ctrl-C`La pagination ne démarre pas avant la commande terminate.
     -   `python`et`gdb`Ces commandes doivent attendre la fin de la commande avant de démarrer la pagination.
 
 ## Problème commun
