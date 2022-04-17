@@ -125,7 +125,7 @@ set AUTO_PAGER_CMDS_WITH_GRC_EXTRA ps last
 ap --fish | source
 ```
 
-इसके अलावा, पर्यावरण चर`$AUTO_PAGER_MIN_HEIGHT`पेजिनेशन शुरू करने के लिए आप न्यूनतम संख्या में लाइनों को नियंत्रित कर सकते हैं:
+另外，环境变量 `$AUTO_PAGER_MIN_HEIGHT`पेजिनेशन शुरू करने के लिए आप न्यूनतम संख्या में लाइनों को नियंत्रित कर सकते हैं:
 
 ```sh
 set AUTO_PAGER_MIN_HEIGHT 30        # 输出超过 30 行时才开始分页
