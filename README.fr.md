@@ -6,7 +6,7 @@ ap se compose de deux parties, un programme binaire écrit en Go qui capture la 
 
 L'utilisation des commandes après le bouclage est la même qu'auparavant et ne devrait pas changer les habitudes de l'utilisateur ni causer de problèmes.
 
-\*Lire ceci dans d'autres langues :[Anglais](README_en.md),[Chinois simplifié](README.md)
+Lisez ceci dans d'autres langues :[Anglais](README.en.md),[Chinois simplifié](README.md),[chinois traditionnel](README.zh-TW.md),[arabe](README.ar.md),[Français](README.fr.md),[Non.](README.hi.md)
 
 ap est un outil shell qui permet à la sortie d'autres commandes shell d'entrer automatiquement en mode de pagination interactive.
 
@@ -197,7 +197,7 @@ AUTO_PAGER_MIN_HEIGHT='-50'     # 输出超过终端窗口高度的 50% 时才�
 eval "$(ap --zsh)"
 ```
 
-Si non spécifié`AUTO_PAGER_MIN_HEIGHT`,La valeur par défaut est`-80`,Tout de suite`80%`。
+Si non spécifié`AUTO_PAGER_MIN_HEIGHT`，默认为 `-80`,Tout de suite`80%`。
 
 ## utiliser
 
