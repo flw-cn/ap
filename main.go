@@ -295,33 +295,76 @@ func printVersion() {
 		return
 	}
 
+	// info.Main.Version format:
+	//	- dirty git work directory: (devel)
+	//	- untagged branch: v0.0.0-20060102150405-aabbccddeeff
+	//	- release version: vX.Y.Z
+	//	- pre-release version: v1.2.3-RC1
+	//	- pseudo version: vX.Y.Z-20060102150405-aabbccddeeff
+	// see also: https://go.dev/ref/mod#glossary
 	version := info.Main.Version
-	fmt.Printf("%v version %s\n", filepath.Base(info.Path), version)
+	fmt.Printf("%v version %s, built with %v\n",
+		filepath.Base(info.Path), version, info.GoVersion)
 
-	l := len(version)
-	if l < len("vX.0.0-yyyymmddhhmmss-abcdefabcdef") {
-		return
-	}
+	vcs := ""
+	vcsRev := ""
+	vcsTime := ""
+	dirty := false
 
-	tag := version[0 : l-30]
-	typ := version[l-30 : l-29]
-	time, _ := time.Parse("20060102150405", version[l-27:l-13])
-	commit := version[l-12 : l]
-	timeStr := time.Local().Format("2006-01-02 15:04:05 MST")
-
-	if version[0:7] == "v0.0.0-" {
-		tag = "untagged branch"
-	} else if typ == "-" {
-		parts := strings.Split(tag, ".")
-		patch, _ := strconv.Atoi(parts[2])
-		if patch > 0 {
-			patch = patch - 1
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs":
+			vcs = s.Value
+		case "vcs.revision":
+			vcsRev = s.Value
+		case "vcs.time":
+			t, e := time.Parse(time.RFC3339, s.Value)
+			if e == nil {
+				vcsTime = t.Local().Format("2006-01-02 15:04:05 MST")
+			}
+		case "vcs.modified":
+			dirty = s.Value == "true"
 		}
-		tag = parts[0] + "." + parts[1] + "." + strconv.Itoa(patch)
 	}
 
-	fmt.Printf("base on %s, commit at %s, commit ID is %s\n",
-		tag, timeStr, commit)
+	tag := ""
+	tagLen := len(version) - len("-yyyymmddhhmmss-aabbccddeeff")
+	if version == "(devel)" {
+		if dirty {
+			tag = "dirty working copy"
+		} else {
+			tag = "clean working copy"
+		}
+	} else if tagLen < len("vX.Y.Z") {
+		// If version is enough to pinpoint a git tag, then that's it.
+		return
+	} else {
+		tag = version[0:tagLen]
+		if tag == "v0.0.0" {
+			tag = "untagged branch"
+		} else {
+			parts := strings.Split(tag, ".")
+			patch, _ := strconv.Atoi(parts[2])
+			if patch > 0 {
+				patch = patch - 1
+			}
+			tag = parts[0] + "." + parts[1] + "." + strconv.Itoa(patch)
+			tag = "branch base on tag " + tag
+		}
+	}
+
+	fmt.Printf(`WARNING! This is not a release version, it's built from a %s.
+
+VCS information:
+VCS:         %v
+Module path: %v
+Commit time: %v
+Revision id: %v
+
+Please visit %v to get updates.
+`,
+		tag, vcs, info.Main.Path, vcsTime, vcsRev, info.Main.Path,
+	)
 }
 
 func parseOptions() []string {
