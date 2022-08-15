@@ -288,40 +288,143 @@ func isPipe(file *os.File) bool {
 	return stat.Mode&unix.S_IFIFO != 0
 }
 
-func printVersion() {
+func printVersion(w io.Writer) {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
-		fmt.Println("Can't get build info.")
+		fmt.Fprintln(w, "Can't get build info.")
 		return
 	}
 
 	version := info.Main.Version
-	fmt.Printf("%v version %s\n", filepath.Base(info.Path), version)
+	fmt.Fprintf(w, "%v version %s, built with %v\n",
+		filepath.Base(info.Path), version, info.GoVersion)
 
-	l := len(version)
-	if l < len("vX.0.0-yyyymmddhhmmss-abcdefabcdef") {
+	vcs := "unknown"
+	vcsRev := "unknown"
+	vcsTime := "unknown"
+
+	typ, tag, rev, t := ParseVersion(version)
+	switch typ {
+	case Release, PreRelease:
+		// info.Settings can't contains any valid VCS information. just return
+		return
+	case ErrorVersion:
+		tag = "unknown branch"
+	case Devel:
+		tag = "clean working copy"
+	case PseudoBaseNoTag, PseudoBaseRelease, PseudoBasePreRelease:
+		if typ == PseudoBaseNoTag {
+			tag = "untagged branch"
+		} else {
+			tag = "branch base on tag " + tag
+		}
+		vcsRev = rev
+		vcsTime = t.Local().Format("2006-01-02 15:04:05 MST")
+	}
+
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs":
+			vcs = s.Value
+		case "vcs.revision":
+			vcsRev = s.Value
+		case "vcs.time":
+			t, e := time.Parse(time.RFC3339, s.Value)
+			if e == nil {
+				vcsTime = t.Local().Format("2006-01-02 15:04:05 MST")
+			}
+		case "vcs.modified":
+			if s.Value == "true" {
+				tag = "dirty working copy"
+			}
+		}
+	}
+
+	fmt.Fprintf(w, `WARNING! This is not a release version, it's built from a %s.
+
+VCS information:
+VCS:         %v
+Module path: %v
+Commit time: %v
+Revision id: %v
+
+Please visit %v to get updates.
+`,
+		tag, vcs, info.Main.Path, vcsTime, vcsRev, info.Main.Path,
+	)
+}
+
+type VersionType int
+
+const (
+	Devel VersionType = iota
+	Release
+	PreRelease
+	PseudoBaseNoTag
+	PseudoBaseRelease
+	PseudoBasePreRelease
+	ErrorVersion
+)
+
+// ParseVersion parses Go Module Version string to three parts:
+// vcs tag, vcs revision ID, and commit time
+//
+// A Go Module Version string layout is one of follow formats:
+//	* dirty vcs work directory: (devel)
+//	* release version: vX.Y.Z
+//	* pre-release version: v1.2.3-RC1
+//	* pseudo version:
+//		- untagged branch: v0.0.0-YYYYmmddHHMMSS-aabbccddeeff
+//		- base on release version: vX.Y.(Z+1)-0.YYYYmmddHHMMSS-aabbccddeeff
+//		- base on pre-release version: vX.Y.Z-RC1.0.YYYYmmddHHMMSS-aabbccddeeff
+//
+// see also: https://go.dev/ref/mod#glossary
+//
+func ParseVersion(version string) (typ VersionType, tag, rev string, t time.Time) {
+	parts := strings.Split(version, "-")
+	tag = parts[0]
+	n := len(parts)
+	if n < 3 { // this is not a pseudo version
+		if tag == "(devel)" {
+			typ = Devel
+		} else if strings.Contains(tag, "-") {
+			typ = PreRelease
+		} else {
+			typ = Release
+		}
 		return
 	}
 
-	tag := version[0 : l-30]
-	typ := version[l-30 : l-29]
-	time, _ := time.Parse("20060102150405", version[l-27:l-13])
-	commit := version[l-12 : l]
-	timeStr := time.Local().Format("2006-01-02 15:04:05 MST")
+	rev = parts[n-1]
+	timeStr := parts[n-2]
+	actualLen := len(timeStr)
+	expectLen := len("YYYYmmddHHMMSS")
+	if actualLen < expectLen {
+		return ErrorVersion, "", "", t
+	}
 
-	if version[0:7] == "v0.0.0-" {
-		tag = "untagged branch"
-	} else if typ == "-" {
+	t, err := time.Parse("20060102150405", timeStr[actualLen-expectLen:actualLen])
+	if err != nil {
+		return ErrorVersion, "", "", t
+	}
+
+	if actualLen == expectLen {
+		return PseudoBaseNoTag, "", rev, t
+	}
+
+	if actualLen == expectLen+2 {
 		parts := strings.Split(tag, ".")
 		patch, _ := strconv.Atoi(parts[2])
 		if patch > 0 {
 			patch = patch - 1
 		}
 		tag = parts[0] + "." + parts[1] + "." + strconv.Itoa(patch)
+		return PseudoBaseRelease, tag, rev, t
 	}
 
-	fmt.Printf("base on %s, commit at %s, commit ID is %s\n",
-		tag, timeStr, commit)
+	tagLen := len(version) - len(".0.yyyymmddhhmmss-aabbccddeeff")
+	tag = version[0:tagLen]
+	return PseudoBasePreRelease, tag, rev, t
 }
 
 func parseOptions() []string {
@@ -366,7 +469,7 @@ func parseOptions() []string {
 	}
 
 	if ver {
-		printVersion()
+		printVersion(os.Stderr)
 		return nil
 	}
 
